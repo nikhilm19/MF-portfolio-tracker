@@ -8,124 +8,180 @@ from bs4 import BeautifulSoup
 from io import BytesIO
 import os
 import warnings
+import calendar
+import datetime
 
 warnings.filterwarnings("ignore")
 
 # ===========================
 # ⚙️ GLOBAL CONFIGURATION
 # ===========================
-st.set_page_config(page_title="Portfolio Tracker", layout="wide", page_icon="📈")
+st.set_page_config(page_title="Portfolio Tracker", layout="wide", page_icon="☕")
 
 # ===========================
-# 🎨 UI & CSS OVERHAUL (THE "CRYPTO DARK" THEME)
+# 🎨 UI & CSS OVERHAUL (THE "LATTE" THEME)
 # ===========================
 st.markdown("""
     <style>
-        /* 1. MAIN BACKGROUND */
-        .stApp {
-            background-color: #121212;
-            color: #E0E0E0;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-        /* 2. SIDEBAR BACKGROUND */
-        [data-testid="stSidebar"] {
-            background-color: #1E1E1E;
-            border-right: 1px solid #333;
-        }
-
-        /* 3. TEXT COLORS & HEADINGS */
-        h1, h2, h3, h4, h5, h6, p, label {
-            color: #E0E0E0 !important;
+        /* 1. GLOBAL RESET & TYPOGRAPHY */
+        html, body, [class*="css"] {
             font-family: 'Inter', sans-serif;
-        }
-        .stMarkdown {
-            color: #B0B0B0;
+            -webkit-font-smoothing: antialiased;
         }
         
-        /* 4. METRIC CARDS (Custom Class) */
-        .metric-card {
-            background-color: #2D2D2D;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            margin-bottom: 20px;
-            border: 1px solid #3E3E3E;
-            text-align: center;
-        }
-        .metric-label {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .metric-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #FFFFFF;
-        }
-        .metric-delta {
-            font-size: 14px;
-            color: #4CAF50; /* Green for profit */
-            font-weight: 600;
-        }
-        .metric-delta.negative {
-            color: #FF5252;
+        /* 2. MAIN BACKGROUND (Warm Paper) */
+        .stApp {
+            background-color: #F5F5F4; /* Stone-100 */
+            color: #292524; /* Stone-800 */
         }
 
-        /* 5. BUTTONS & ACCENTS */
-        .stButton > button {
-            background-color: #FF6D00;
-            color: white;
-            border-radius: 8px;
-            border: none;
+        /* 3. SIDEBAR BACKGROUND (Mocha / Dark Stone) */
+        [data-testid="stSidebar"] {
+            background-color: #292524; /* Stone-800 */
+            border-right: 1px solid #44403C;
+        }
+        /* Sidebar Text Overrides */
+        [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
+            color: #E7E5E4 !important; /* Stone-200 */
+        }
+
+        /* 4. TEXT COLORS & HEADINGS */
+        h1, h2, h3, h4, h5, h6 {
+            color: #292524 !important; /* Stone-800 */
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+        p, label, .stMarkdown {
+            color: #57534E !important; /* Stone-600 */
+        }
+
+        /* 5. METRIC CARDS (White + Warm Shadow) */
+        .metric-card {
+            background: #FFFFFF;
+            border: 1px solid #E7E5E4; /* Stone-200 */
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(68, 64, 60, 0.05); /* Warm shadow */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(68, 64, 60, 0.1);
+            border-color: #D6D3D1; /* Stone-300 */
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #A8A29E; /* Stone-400 */
             font-weight: 600;
-            transition: all 0.3s ease;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #292524; /* Stone-800 */
+            line-height: 1.2;
+        }
+        .metric-delta {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 8px;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        /* Earthy Pos/Neg Colors */
+        .delta-pos { color: #15803D; background: #DCFCE7; } /* Green-700 on Green-50 */
+        .delta-neg { color: #B91C1C; background: #FEE2E2; } /* Red-700 on Red-50 */
+        .delta-neu { color: #57534E; background: #F5F5F4; }
+
+        /* 6. BUTTONS (Burnt Orange) */
+        .stButton > button {
+            background: #EA580C; /* Orange-600 */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             width: 100%;
         }
         .stButton > button:hover {
-            background-color: #E65100;
-            box-shadow: 0 0 10px rgba(255, 109, 0, 0.5);
+            background: #C2410C; /* Orange-700 */
+            box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2);
+            transform: translateY(-1px);
         }
-        /* Download Button Specifics */
+        
+        /* Download Button Variant (Sidebar - Dark Context) */
         .stDownloadButton > button {
-            background-color: #2D2D2D;
-            color: #FF6D00;
-            border: 1px solid #FF6D00;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #E7E5E4;
+            border-radius: 8px;
             width: 100%;
         }
         .stDownloadButton > button:hover {
-            background-color: #FF6D00;
-            color: white;
+            border-color: #EA580C;
+            color: #EA580C;
+            background: rgba(234, 88, 12, 0.1);
         }
 
-        /* 6. TABS */
+        /* 7. CUSTOM TABS */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-            background-color: transparent;
+            background-color: #E7E5E4; /* Stone-200 */
+            padding: 4px;
+            border-radius: 8px;
+            gap: 0px;
         }
         .stTabs [data-baseweb="tab"] {
-            background-color: transparent;
-            color: #888;
-            border-radius: 5px;
-            padding: 10px 20px;
+            height: 36px;
+            border-radius: 6px;
+            color: #78716C; /* Stone-500 */
+            font-weight: 500;
+            border: none;
+            flex: 1;
         }
         .stTabs [aria-selected="true"] {
-            background-color: #2D2D2D;
-            color: #FF6D00 !important;
-            border-bottom: 2px solid #FF6D00;
+            background-color: #FFFFFF;
+            color: #EA580C !important; /* Orange Active Text */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
         }
 
-        /* 7. DATAFRAME */
+        /* 8. DATAFRAME */
         [data-testid="stDataFrame"] {
-            border: 1px solid #333;
-            border-radius: 10px;
+            border: 1px solid #E7E5E4;
+            border-radius: 8px;
             overflow: hidden;
+            background: white;
         }
         
-        /* Remove standard streamlit footer/menu for cleaner look */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
+        /* 9. HEADER BADGE */
+        .live-badge {
+            background: #FFEDD5; /* Orange-100 */
+            color: #C2410C; /* Orange-700 */
+            padding: 2px 10px;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #FED7AA;
+            margin-left: 10px;
+            vertical-align: middle;
+            display: inline-block;
+        }
+
+        /* --- FIX: VISIBLE SIDEBAR TOGGLE --- */
+        #MainMenu {visibility: hidden;} /* Hides the hamburger menu */
+        footer {visibility: hidden;}    /* Hides 'Made with Streamlit' */
+        /* Removed 'header {visibility: hidden;}' to keep sidebar toggle visible */
+        [data-testid="stHeader"] {
+            background-color: rgba(0,0,0,0); /* Makes header transparent */
+        }
+        
     </style>
 """, unsafe_allow_html=True)
 
@@ -148,33 +204,33 @@ FUND_CONFIG = {
         "url": "https://mf.nipponindiaim.com/investor-service/downloads/factsheet-portfolio-and-other-disclosures",
         "base_url": "https://mf.nipponindiaim.com",
         "sheet": "SC"
+    },
+    "HDFC Nifty 50 Index": {
+        "file": "HDFC_Nifty50_Portfolio_2025.xlsx",
+        "base_url": "https://files.hdfcfund.com/s3fs-public",
+        "fund_keyword": "nifty 50 index fund" 
     }
 }
 
 # ===========================
-# 🧠 SCRAPER ENGINES (Logic Preserved)
+# 🧠 SCRAPER ENGINES (Unchanged)
 # ===========================
-def get_ppfas_url(month, year):
+def fetch_ppfas_data(month, year):
     try:
         response = requests.get(FUND_CONFIG["PPFAS Flexi Cap"]["url"], headers=HEADERS, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
         links = soup.find_all('a', href=True)
         search_terms = [month[:3].lower(), str(year), "ppfcf"]
+        target_url = None
         for link in links:
             full_str = (link['href'] + link.text).lower()
             if all(t in full_str for t in search_terms) and re.search(r'\.xlsx?($|\?)', link['href']):
-                return link['href'] if link['href'].startswith('http') else f"https://amc.ppfas.com{link['href']}"
-    except: pass
-    return None
-
-def fetch_ppfas_data(month, year):
-    url = get_ppfas_url(month, year)
-    if not url: return None
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
+                target_url = link['href'] if link['href'].startswith('http') else f"https://amc.ppfas.com{link['href']}"
+                break
+        if not target_url: return None
+        resp = requests.get(target_url, headers=HEADERS, timeout=30)
         try: all_sheets = pd.read_excel(BytesIO(resp.content), header=None, sheet_name=None, engine='openpyxl')
         except: all_sheets = pd.read_excel(BytesIO(resp.content), header=None, sheet_name=None, engine='xlrd')
-        
         full_df = pd.concat(all_sheets.values(), ignore_index=True)
         valid_holdings = []
         for idx, row in full_df.iterrows():
@@ -192,51 +248,85 @@ def fetch_ppfas_data(month, year):
         return pd.DataFrame(valid_holdings).groupby("ISIN", as_index=False).agg({"Stock Name": "first", f"Qty_{month}_{year}": "sum"})
     except: return None
 
-def get_nippon_url(month, year):
-    month_short = month[:3]
-    year_short = str(year)[-2:]
-    direct_patterns = [
-        f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month_short}-{year_short}.xls",
-        f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month}-{year}.xls"
-    ]
-    for url in direct_patterns:
-        try: 
-            if requests.head(url, headers=HEADERS, timeout=3).status_code == 200: return url
-        except: continue
-    try:
-        resp = requests.get(FUND_CONFIG["Nippon India Small Cap"]["url"], headers=HEADERS, timeout=10)
-        regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
-        matches = re.findall(regex, resp.text, re.IGNORECASE)
-        if matches:
-            link = matches[0]
-            return FUND_CONFIG["Nippon India Small Cap"]["base_url"] + link if link.startswith("/") else link
-    except: pass
-    return None
-
 def fetch_nippon_data(month, year):
-    url = get_nippon_url(month, year)
-    if not url: return None
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
+        month_short, year_short = month[:3], str(year)[-2:]
+        target_url = None
+        patterns = [
+            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month_short}-{year_short}.xls",
+            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month}-{year}.xls"
+        ]
+        for url in patterns:
+            try: 
+                if requests.head(url, headers=HEADERS, timeout=3).status_code == 200: target_url = url; break
+            except: continue
+        if not target_url:
+            resp = requests.get(FUND_CONFIG["Nippon India Small Cap"]["url"], headers=HEADERS, timeout=10)
+            regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
+            matches = re.findall(regex, resp.text, re.IGNORECASE)
+            if matches:
+                link = matches[0]
+                target_url = FUND_CONFIG["Nippon India Small Cap"]["base_url"] + link if link.startswith("/") else link
+        if not target_url: return None
+        resp = requests.get(target_url, headers=HEADERS, timeout=30)
         target_sheet = FUND_CONFIG["Nippon India Small Cap"]["sheet"]
         try: df = pd.read_excel(BytesIO(resp.content), sheet_name=target_sheet, header=None, engine='openpyxl')
         except: df = pd.read_excel(BytesIO(resp.content), sheet_name=target_sheet, header=None, engine='xlrd')
-
         header_idx = None
         for idx, row in df.iterrows():
-            if "name of the instrument" in row.astype(str).str.cat(sep=' ').lower():
-                header_idx = idx; break
+            if "name of the instrument" in row.astype(str).str.cat(sep=' ').lower(): header_idx = idx; break
         if header_idx is None: return None
-
         df.columns = df.iloc[header_idx]
         df = df.iloc[header_idx+1:].copy()
         col_map = {c: "Stock Name" if "name of the instrument" in str(c).lower() else "ISIN" if "isin" in str(c).lower() else f"Qty_{month}_{year}" if "quantity" in str(c).lower() else c for c in df.columns}
         df = df.rename(columns=col_map)
-        
         valid_rows = []
         for _, row in df.iterrows():
             isin = str(row.get("ISIN", "")).upper()
             if isin.startswith("INE") and "total" not in str(row.get("Stock Name", "")).lower():
+                try:
+                    qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
+                    if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
+                except: continue
+        return pd.DataFrame(valid_rows)
+    except: return None
+
+def fetch_hdfc_data(month, year):
+    try:
+        month_num = datetime.datetime.strptime(month, "%B").month
+        last_day = calendar.monthrange(year, month_num)[1]
+        date_obj = datetime.date(year, month_num, 1)
+        next_month = date_obj.replace(day=28) + datetime.timedelta(days=4)
+        folder_path = next_month.strftime("%Y-%m")
+        filename = f"Monthly HDFC Nifty 50 Index Fund - {last_day} {month} {year}.xlsx"
+        url = f"{FUND_CONFIG['HDFC Nifty 50 Index']['base_url']}/{folder_path}/{filename.replace(' ', '%20')}"
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        if resp.status_code != 200: return None
+        xls = pd.ExcelFile(BytesIO(resp.content))
+        target_df = None
+        header_row = None
+        for sheet in xls.sheet_names:
+            df = pd.read_excel(xls, sheet_name=sheet, header=None)
+            if FUND_CONFIG['HDFC Nifty 50 Index']['fund_keyword'] in df.iloc[0:5].astype(str).to_string().lower():
+                target_df = df
+                for idx, row in df.iterrows():
+                    r_str = row.astype(str).str.cat(sep=" ").lower()
+                    if "isin" in r_str and "name" in r_str and "quantity" in r_str: header_row = idx; break
+                break
+        if target_df is None or header_row is None: return None
+        target_df.columns = target_df.iloc[header_row]
+        df = target_df.iloc[header_row+1:].copy()
+        col_map = {}
+        for c in df.columns:
+            val = str(c).lower().strip()
+            if "isin" in val: col_map[c] = "ISIN"
+            elif "name" in val and "instrument" in val: col_map[c] = "Stock Name"
+            elif "quantity" in val: col_map[c] = f"Qty_{month}_{year}"
+        df = df.rename(columns=col_map)
+        valid_rows = []
+        for _, row in df.iterrows():
+            isin = str(row.get("ISIN", "")).upper()
+            if isin.startswith("INE"):
                 try:
                     qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
                     if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
@@ -249,20 +339,19 @@ def run_update(fund_name):
     output_file = config["file"]
     status = st.empty()
     bar = st.progress(0)
-    
     if os.path.exists(output_file):
         master_df = pd.read_excel(output_file)
         master_df["ISIN"] = master_df["ISIN"].astype(str).str.strip()
     else:
         master_df = pd.DataFrame(columns=["ISIN", "Stock Name"])
-
     for i, month in enumerate(MONTHS):
         col_name = f"Qty_{month}_{YEARS[0]}"
         if col_name not in master_df.columns:
             status.text(f"📥 Fetching {month} for {fund_name}...")
             if fund_name == "PPFAS Flexi Cap": new_df = fetch_ppfas_data(month, YEARS[0])
-            else: new_df = fetch_nippon_data(month, YEARS[0])
-            
+            elif fund_name == "Nippon India Small Cap": new_df = fetch_nippon_data(month, YEARS[0])
+            elif fund_name == "HDFC Nifty 50 Index": new_df = fetch_hdfc_data(month, YEARS[0])
+            else: new_df = None
             if new_df is not None:
                 new_df["ISIN"] = new_df["ISIN"].astype(str).str.strip()
                 master_df = pd.merge(master_df, new_df, on="ISIN", how="outer", suffixes=("", "_new"))
@@ -273,7 +362,6 @@ def run_update(fund_name):
                     master_df[col_name] = master_df[f"{col_name}_new"]
                     master_df.drop(columns=[f"{col_name}_new"], inplace=True)
         bar.progress((i + 1) / len(MONTHS))
-    
     master_df.to_excel(output_file, index=False)
     status.text("✅ Update Complete!")
     return master_df
@@ -284,12 +372,13 @@ def run_update(fund_name):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("### ⚙️ Control Panel")
+    st.image("https://cdn-icons-png.flaticon.com/512/1077/1077114.png", width=42) # Generic Icon
+    st.markdown("### Workspace")
     
-    selected_fund = st.selectbox("Fund Source", list(FUND_CONFIG.keys()))
+    selected_fund = st.selectbox("Active Portfolio", list(FUND_CONFIG.keys()))
     current_file = FUND_CONFIG[selected_fund]["file"]
     
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
     
     col_sb1, col_sb2 = st.columns(2)
     with col_sb1:
@@ -301,24 +390,25 @@ with st.sidebar:
     if os.path.exists(current_file):
         with open(current_file, "rb") as f:
             with col_sb2:
-                st.download_button("⬇ Save", f, file_name=current_file, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+                st.download_button("↓ Export", f, file_name=current_file, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
 
-    st.divider()
+    st.markdown("---")
     
+    st.markdown("### Timeline")
     available_months = []
     if os.path.exists(current_file):
         temp = pd.read_excel(current_file)
         available_months = [c.replace("Qty_", "").replace(f"_{YEARS[0]}", "") for c in temp.columns if "Qty_" in c]
-    view_month = st.selectbox("📅 Filter View", ["All Months"] + available_months) if available_months else "All Months"
+    view_month = st.selectbox("Period", ["All Months"] + available_months) if available_months else "All Months"
 
 
 # --- HEADER ---
 st.markdown(f"""
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <div>
-            <h1 style="color: #FF6D00; margin: 0;">🔥 {selected_fund}</h1>
-            <p style="color: #888; margin: 0;">Advanced Portfolio Analytics Dashboard</p>
-        </div>
+    <div style="margin-bottom: 2rem; padding-top: 1rem;">
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px;">
+            {selected_fund} <span class="live-badge">● Live</span>
+        </h1>
+        <p style="font-size: 1rem; opacity: 0.8;">Real-time portfolio disclosure tracking & analytics</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -329,45 +419,77 @@ if os.path.exists(current_file):
     qty_cols = [c for c in df.columns if "Qty_" in c]
     for c in qty_cols: df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
 
+    # ========================================================
+    # 🧠 SMART FILTERING & METRIC CALCULATION
+    # ========================================================
+    
+    # 1. Determine "Latest Column" (The most recent month available)
+    present_qty_cols = [c for c in qty_cols if c in df.columns]
+    if present_qty_cols:
+        def get_month_index(col_name):
+            m_name = col_name.replace("Qty_", "").replace(f"_{YEARS[0]}", "")
+            return MONTHS.index(m_name) if m_name in MONTHS else -1
+        
+        # Sort cols chronologically
+        sorted_cols = sorted(present_qty_cols, key=get_month_index)
+        latest_col = sorted_cols[-1]
+    else:
+        latest_col = None
+        sorted_cols = []
+
+    # 2. Logic based on Selection
     if view_month != "All Months":
+        # === SINGLE MONTH VIEW ===
+        # Restrict to one column, filter rows that are active in THAT month
         target_col = f"Qty_{view_month}_{YEARS[0]}"
         display_df = df[df[target_col] > 0][["Stock Name", "ISIN", target_col]].copy()
         view_cols = [target_col]
-        latest_col = target_col
+        active_holdings_count = len(display_df)
     else:
-        display_df = df.copy()
-        view_cols = qty_cols
-        latest_col = qty_cols[-1] if qty_cols else None
+        # === ALL MONTHS VIEW ===
+        # 1. Data Grid: Show ALL columns so user sees history
+        view_cols = sorted_cols 
+        
+        # 2. Rows: Show stocks that were held at ANY point (Sum > 0)
+        #    This brings back sold stocks into the grid/charts history
+        if view_cols:
+            mask = df[view_cols].sum(axis=1) > 0
+            display_df = df[mask][["Stock Name", "ISIN"] + view_cols].copy()
+        else:
+            display_df = pd.DataFrame()
 
-    # --- METRIC CARDS ---
-    # Prepare Data
-    total_holdings = len(display_df)
-    
-    if not display_df.empty and latest_col:
-        top_stock_row = display_df.sort_values(by=latest_col, ascending=False).iloc[0]
-        top_stock_name = top_stock_row['Stock Name']
-        top_stock_qty = top_stock_row[latest_col]
-    else:
-        top_stock_name = "N/A"
-        top_stock_qty = 0
+        # 3. METRIC: Active Holdings (Strictly Latest Month > 0)
+        #    We calculate this separately from the grid view
+        if latest_col:
+            active_holdings_count = len(df[df[latest_col] > 0])
+        else:
+            active_holdings_count = 0
 
-    # Calculate MoM Change (Aggregate)
+    # ========================================================
+
+    # Metrics Calculation
+    # Top Stock is based on the LATEST available data point for accuracy
+    top_stock_name = "N/A"
+    if latest_col and not df.empty:
+        # Sort by latest month to find top holding
+        top_series = df.sort_values(by=latest_col, ascending=False).iloc[0]
+        if top_series[latest_col] > 0:
+            top_stock_name = top_series['Stock Name']
+
+    delta_pct = 0
     if len(qty_cols) >= 2 and view_month == "All Months":
-        curr_total = df[qty_cols[-1]].sum()
-        prev_total = df[qty_cols[-2]].sum()
-        delta_pct = ((curr_total - prev_total) / prev_total * 100) if prev_total > 0 else 0
-    else:
-        delta_pct = 0
+        curr, prev = df[qty_cols[-1]].sum(), df[qty_cols[-2]].sum()
+        delta_pct = ((curr - prev) / prev * 100) if prev > 0 else 0
 
-    # Display Cards
+    # METRIC CARDS
     c1, c2, c3 = st.columns(3)
     
     with c1:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-label">Active Holdings</div>
-            <div class="metric-value">{total_holdings}</div>
-            <div class="metric-delta">Stocks Found</div>
+            <div class="metric-label">Total Assets</div>
+            <div class="metric-value">{active_holdings_count}</div>
+            <div class="metric-delta delta-neu">Active Positions</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -375,56 +497,57 @@ if os.path.exists(current_file):
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Top Allocation</div>
-            <div class="metric-value" style="font-size: 24px;">{top_stock_name[:15]}..</div>
-            <div class="metric-delta">{top_stock_qty:,.0f} Units</div>
+            <div class="metric-value" style="font-size: 1.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{top_stock_name}</div>
+            <div class="metric-delta delta-pos">Highest Weight</div>
         </div>
         """, unsafe_allow_html=True)
         
     with c3:
-        color_class = "negative" if delta_pct < 0 else ""
-        arrow = "▼" if delta_pct < 0 else "▲"
+        arrow = "↑" if delta_pct >= 0 else "↓"
+        color_class = "delta-pos" if delta_pct >= 0 else "delta-neg"
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-label">Portfolio Momentum</div>
+            <div class="metric-label">Volume Velocity</div>
             <div class="metric-value">{abs(delta_pct):.1f}%</div>
             <div class="metric-delta {color_class}">{arrow} MoM Change</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # --- TABS ---
-    if latest_col:
-        st.markdown("### 📊 Market Analysis")
-        tab1, tab2, tab3 = st.tabs(["Holdings Map", "Data Grid", "Trend Scanner"])
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        # TAB 1: TREEMAP (Dark Mode)
+    if latest_col:
+        tab1, tab2, tab3 = st.tabs(["Overview", "Data Grid", "Analytics"])
+
+        # TAB 1: TREEMAP (Warm Gradient)
         with tab1:
-            top_stocks = display_df.nlargest(30, latest_col)
+            # Treemap always uses LATEST data to show current composition
+            top_stocks = df[df[latest_col]>0].nlargest(30, latest_col)
             fig = px.treemap(
                 top_stocks, 
                 path=['Stock Name'], 
                 values=latest_col,
                 color=latest_col,
-                color_continuous_scale='Tealgrn' # Looks good on dark
+                color_continuous_scale='Oranges' # Warm Orange Gradient
             )
             fig.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                font_color="#E0E0E0",
-                margin=dict(t=20, l=0, r=0, b=0),
-                coloraxis_showscale=False
+                font_color="#57534E", # Stone-600
+                margin=dict(t=0, l=0, r=0, b=0),
+                coloraxis_showscale=False,
+                hoverlabel=dict(bgcolor="white", bordercolor="#D6D3D1")
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        # TAB 2: GRID (Dark Mode)
+        # TAB 2: GRID (Warm Table - SHOWS HISTORY)
         with tab2:
             if "Stock Name" in display_df.columns:
                 agg_dict = {col: "sum" for col in view_cols}
                 if "ISIN" in display_df.columns: agg_dict["ISIN"] = "first"
                 grid_df = display_df.groupby("Stock Name", as_index=False).agg(agg_dict).set_index("Stock Name")
-            else:
-                grid_df = display_df
-
-            # Apply orange gradient
+            else: grid_df = display_df
+            
+            # Warm Orange gradient for the table
             st.dataframe(
                 grid_df.style.background_gradient(cmap="Oranges", subset=view_cols)
                              .format("{:,.0f}", subset=view_cols),
@@ -432,56 +555,66 @@ if os.path.exists(current_file):
                 height=500
             )
 
-        # TAB 3: GLOWING CHART
+        # TAB 3: TRENDS (Warm Line Chart)
         with tab3:
-            col_search, _ = st.columns([1, 2])
-            with col_search:
-                stock_list = sorted(df["Stock Name"].unique().tolist())
-                stock = st.selectbox("Select Asset", stock_list)
-
-            trend_data = df[df["Stock Name"] == stock].melt(
-                id_vars=["Stock Name"], value_vars=qty_cols, var_name="Month", value_name="Qty"
-            )
+            c_search, _ = st.columns([1, 2])
+            with c_search: 
+                stock = st.selectbox("Inspect Asset", sorted(df["Stock Name"].unique().tolist()))
+            
+            trend_data = df[df["Stock Name"] == stock].melt(id_vars=["Stock Name"], value_vars=qty_cols, var_name="Month", value_name="Qty")
             trend_data["Month"] = trend_data["Month"].str.replace("Qty_", "").str.replace(f"_{YEARS[0]}", "")
 
-            # Custom Plotly Graph Object for Glow Effect
+            # Custom Warm Area Chart
             fig_area = go.Figure()
             fig_area.add_trace(go.Scatter(
                 x=trend_data['Month'], 
                 y=trend_data['Qty'],
                 fill='tozeroy',
                 mode='lines+markers',
-                line=dict(color='#FF6D00', width=3), # Orange Line
-                marker=dict(size=8, color='#FF6D00', line=dict(width=2, color='white')),
-                fillcolor='rgba(255, 109, 0, 0.2)' # Semi-transparent Fill
+                line=dict(color='#EA580C', width=3, shape='spline'), # Orange-600
+                marker=dict(size=6, color='#EA580C', line=dict(width=2, color='white')),
+                fillcolor='rgba(234, 88, 12, 0.1)' # Warm orange fill
             ))
 
             fig_area.update_layout(
-                title=f"Asset Trajectory: {stock}",
-                template="plotly_dark",
+                title=dict(text=f"{stock} Trajectory", font=dict(size=14, color="#57534E")),
+                template="plotly_white",
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#E0E0E0"),
-                xaxis=dict(showgrid=False),
-                yaxis=dict(showgrid=True, gridcolor='#333'),
+                font=dict(family="Inter, sans-serif", color="#57534E"),
+                xaxis=dict(showgrid=False, zeroline=False),
+                yaxis=dict(showgrid=True, gridcolor='#E7E5E4', zeroline=False), # Light stone grid
                 hovermode="x unified"
             )
             st.plotly_chart(fig_area, use_container_width=True)
 
 else:
-    # --- WELCOME SCREEN (Dark Mode) ---
+    # --- WELCOME SCREEN (Latte Style) ---
     st.markdown(f"""
-    <div style="text-align: center; padding: 100px; color: #666;">
-        <h1 style="color: #444;">No Data Initialized</h1>
-        <p>You have selected <b>{selected_fund}</b>.</p>
-        <p>Click <b>Sync</b> in the sidebar to scrape the latest disclosures.</p>
+    <div style="
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        height: 60vh; 
+        text-align: center;
+        border: 1px dashed #D6D3D1;
+        border-radius: 16px;
+        background: #F5F5F4;
+    ">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">☕</div>
+        <h2 style="color: #292524; margin-bottom: 0.5rem;">Ready to Track {selected_fund}</h2>
+        <p style="color: #78716C; max-width: 400px; line-height: 1.5;">
+            No local data found. Initialize the database to scrape the latest disclosures and build your dashboard.
+        </p>
+        <br>
     </div>
     """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1,2,1])
+    col1, col2, col3 = st.columns([1,1,1])
     with col2:
-        if st.button(f"🚀 Initialize Data for {selected_fund}", use_container_width=True):
-             with st.spinner(f"Scraping {selected_fund} website... This may take a minute."):
+        if st.button(f"Initialize Database", use_container_width=True):
+             with st.spinner(f"Connecting to fund registry..."):
                 run_update(selected_fund)
-                st.success("Initialization Complete! Reloading...")
+                st.success("Sync Complete!")
                 st.rerun()
