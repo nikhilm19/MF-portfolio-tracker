@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 # 1. SETUP & CONFIGURATION
 # ===========================
 st.set_page_config(page_title="Portfolio Tracker", layout="wide", page_icon="☕")
-ui.apply_clean_saas_theme()  # <--- Using the new Soft SaaS Theme
+ui.apply_clean_saas_theme()
 
 # ===========================
 # 2. LOGIC CONTROLLER (SYNC)
@@ -122,17 +122,18 @@ with st.sidebar:
 # ===========================
 
 if app_mode == "Single View":
-    # --- HEADER ---
-    st.markdown(f"""
-        <div style="margin-bottom: 2rem; padding-top: 1rem;">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px;">
-                {selected_fund} <span class="live-badge">● Live</span>
-            </h1>
-            <p style="font-size: 1rem; opacity: 0.8;">Real-time portfolio disclosure tracking & analytics</p>
-        </div>
-    """, unsafe_allow_html=True)
-
+    # Check if data exists BEFORE rendering the specific fund header
     if os.path.exists(current_file):
+        # --- HEADER (Only shown if we have data) ---
+        st.markdown(f"""
+            <div style="margin-bottom: 2rem; padding-top: 1rem;">
+                <h1 style="font-size: 2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px;">
+                    {selected_fund} <span class="live-badge">● Live</span>
+                </h1>
+                <p style="font-size: 1rem; opacity: 0.8;">Real-time portfolio disclosure tracking & analytics</p>
+            </div>
+        """, unsafe_allow_html=True)
+
         df = pd.read_excel(current_file)
         qty_cols = [c for c in df.columns if "Qty_" in c]
         for c in qty_cols: df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
@@ -226,12 +227,11 @@ if app_mode == "Single View":
                 ui.render_trend_chart(df, stock, qty_cols, YEARS)
     
     else:
-        # --- NEW LANDING PAGE ---
-        ui.render_landing_page()
+        # Capture the return value
+        start_clicked = ui.render_landing_page()
         
-        # Center the initialize button below the landing page text
-        _, c2, _ = st.columns([1,1,1])
-        if c2.button("Initialize Database"):
+        # If clicked, trigger initialization
+        if start_clicked:
             with st.spinner("Connecting..."):
                 run_update_process(selected_fund)
                 st.rerun()
