@@ -107,8 +107,14 @@ def run_update_process(fund_name):
 # 3. SIDEBAR NAVIGATION
 # ===========================
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1077/1077114.png", width=42)
-    
+    st.markdown("""
+        <div style="padding-top: 20px;">
+            <h1 class="hero-title">
+                Welcome <span class="hero-gradient">back!</span>
+            </h1>
+            
+        </div>
+        """, unsafe_allow_html=True)
     st.markdown("---")
     st.markdown("### Mode")
     mode_index = 0 if st.session_state.get("app_mode", "Single View") == "Single View" else 1

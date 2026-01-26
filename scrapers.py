@@ -239,7 +239,7 @@ def fetch_hdfc(month, year):
                         
                 if f"NavPct_{month}_{year}" in df.columns:
                     try:
-                        np_val = float(str(row.get(f"NavPct_{month}_{year}", 0)).replace(",", "").replace("%", ""))
+                        np_val = float(str(row.get(f"NavPct_{month}_{year}", 0)))
                         record[f"NavPct_{month}_{year}"] = np_val
                     except:
                         record[f"NavPct_{month}_{year}"] = 0

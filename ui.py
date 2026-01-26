@@ -110,9 +110,9 @@ def apply_clean_saas_theme():
             .glass-card {
                 background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);
                 border: 1px solid #FFFFFF; border-radius: 24px; padding: 25px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.08); transform: rotate(-2deg); transition: transform 0.3s ease;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.08); transform: rotate(0deg); transition: transform 0.3s ease;
             }
-            .glass-card:hover { transform: rotate(0deg) scale(1.02); }
+            .glass-card:hover { transform: rotate(0deg) scale(1.05); }
             .glass-metric { font-size: 2rem; font-weight: 800; color: #111827; }
             .glass-label { font-size: 0.85rem; color: #9CA3AF; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 
@@ -225,7 +225,7 @@ def render_treemap(df, col_name):
     
     custom_data = df[custom_data_cols].copy()
     if nav_pct_col in df.columns:
-        custom_data[nav_pct_col] = custom_data[nav_pct_col] * 100
+        custom_data[nav_pct_col] = custom_data[nav_pct_col]
     
     # Build custom hover template
     hover_template = '<b>%{label}</b><br>Quantity: %{customdata[0]:,.0f}'
@@ -277,7 +277,7 @@ def render_fund_flow(entries_df, exits_df, current_month):
         st.markdown(f"""<div style="background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px;"><div style="color: #059669; font-weight: 700; font-size: 0.9rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;"><span style="background: #ECFDF5; padding: 4px 10px; border-radius: 99px;">FRESH ENTRIES</span><span style="color: #9CA3AF;">{len(entries_df)}</span></div>""", unsafe_allow_html=True)
         if not entries_df.empty:
             for _, row in entries_df.iterrows():
-                st.markdown(f"""<div style="border-bottom: 1px solid #F3F4F6; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600; color: #111827;">{row['Stock Name']}</span><span style="font-size: 0.85rem; color: #059669; background: #ECFDF5; padding: 2px 10px; border-radius: 99px;">+{row['Qty']:,.0f}</span></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="animation: pulse-glow 2s infinite; border-bottom: 1px solid #F3F4F6; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600; color: #111827;">{row['Stock Name']}</span><span style="font-size: 0.85rem; color: #059669; background: #ECFDF5; padding: 2px 10px; border-radius: 99px;">+{row['Qty']:,.0f}</span></div>""", unsafe_allow_html=True)
         else: st.markdown("<div style='color: #9CA3AF; font-style: italic; padding: 10px 0;'>No new entries this month.</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -318,7 +318,6 @@ def render_landing_page():
     with c1:
         st.markdown("""
         <div style="padding-top: 20px;">
-            <div class="hero-pill">🚀 Insights v2.0 is Live</div>
             <h1 class="hero-title">
                 FundFlow <span class="hero-gradient">Analytics</span>
             </h1>
