@@ -33,28 +33,27 @@ def apply_clean_saas_theme():
                 font-weight: 500;
             }
 
-            /* --- FIXED NAVIGATION ICONS (ALWAYS DARK) --- */
-            /* 1. Sidebar Toggle (When Sidebar is Collapsed/Closed) */
-            [data-testid="stSidebarCollapsedControl"] {
-                color: #111827 !important;
-            }
-            [data-testid="stSidebarCollapsedControl"] svg {
-                fill: #111827 !important;
-                color: #111827 !important;
+            /* --- CRITICAL NAVIGATION FIX --- */
+            /* 1. Force the Header to be visible but transparent so buttons show */
+            [data-testid="stHeader"] {
+                background-color: transparent !important;
+                z-index: 999999 !important; /* Always on top */
             }
 
-            /* 2. Sidebar Close Button (When Sidebar is Open) */
-            [data-testid="stSidebar"] button[kind="header"] svg {
-                fill: #111827 !important;
-                color: #111827 !important;
-            }
-
-            /* 3. Top Right Menu (Three Dots) */
+            /* 2. Color the icons BLACK */
+            [data-testid="stSidebarCollapsedControl"] svg,
             [data-testid="stHeader"] button[kind="header"] svg {
-                fill: #111827 !important;
-                color: #111827 !important;
+                fill: #000000 !important;
+                color: #000000 !important;
+                stroke: #000000 !important;
             }
-            /* -------------------------------------------- */
+            
+            /* 3. Force the container to be visible */
+            [data-testid="stSidebarCollapsedControl"] {
+                display: block !important;
+                color: #000000 !important;
+            }
+            /* ------------------------------- */
 
             /* 4. LANDING PAGE STYLES */
             .hero-container {
@@ -209,7 +208,9 @@ def apply_clean_saas_theme():
             .live-badge { background: linear-gradient(135deg, #FF6B00 0%, #FF9900 100%); color: white; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 700; margin-left: 10px; box-shadow: 0 2px 10px rgba(255, 107, 0, 0.3); }
 
             #MainMenu, footer { visibility: hidden; }
-            [data-testid="stHeader"] { background-color: rgba(0,0,0,0); }
+            
+            /* REMOVE this if it was hiding the mobile menu */
+            /* [data-testid="stHeader"] { background-color: rgba(0,0,0,0); } */
         </style>
     """, unsafe_allow_html=True)
 
