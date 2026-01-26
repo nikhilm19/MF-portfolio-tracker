@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import warnings
+import re
 from config import FUND_CONFIG, YEARS, MONTHS
 import scrapers
 import ui
@@ -12,20 +13,35 @@ warnings.filterwarnings("ignore")
 # ===========================
 # 1. SETUP & CONFIGURATION
 # ===========================
-st.set_page_config(page_title="Portfolio Tracker", layout="wide", page_icon="☕")
+st.set_page_config(page_title="FundFlow Analytics", layout="wide", page_icon="☕")
 ui.apply_clean_saas_theme()
+
+# --- SESSION STATE INITIALIZATION ---
+if "dashboard_active" not in st.session_state:
+    st.session_state["dashboard_active"] = False
+
+def activate_dashboard():
+    """Callback to activate dashboard when user selects a fund"""
+    st.session_state["dashboard_active"] = True
+
+#Helper: Normalize Stock Names
+def normalize_names(df):
+    if "Stock Name" in df.columns:
+        df["Stock Name"] = df["Stock Name"].astype(str)
+        df["Stock Name"] = df["Stock Name"].str.replace(r'\s+Limited\s*$', '', case=False, regex=True)
+        df["Stock Name"] = df["Stock Name"].str.replace(r'\s+Ltd\.?\s*$', '', case=False, regex=True)
+        df["Stock Name"] = df["Stock Name"].str.strip()
+    return df
 
 # ===========================
 # 2. LOGIC CONTROLLER (SYNC)
 # ===========================
 def run_update_process(fund_name):
-    """Orchestrates scraping and excel merging for a single fund"""
     conf = FUND_CONFIG[fund_name]
     output_file = conf["file"]
     status = st.empty()
     bar = st.progress(0)
     
-    # Load or Create Master DataFrame
     if os.path.exists(output_file):
         master_df = pd.read_excel(output_file)
         if "ISIN" in master_df.columns:
@@ -33,43 +49,30 @@ def run_update_process(fund_name):
     else:
         master_df = pd.DataFrame(columns=["ISIN", "Stock Name"])
 
-    # Iterate through months to fetch missing columns
     for i, month in enumerate(MONTHS):
         col_name = f"Qty_{month}_{YEARS[0]}"
-        
-        # Only scrape if column is missing
         if col_name not in master_df.columns:
             status.text(f"📥 Fetching {month} for {fund_name}...")
-            
-            # Select appropriate scraper engine
             new_df = None
-            if fund_name == "PPFAS Flexi Cap": 
-                new_df = scrapers.fetch_ppfas(month, YEARS[0])
-            elif fund_name == "Nippon India Small Cap": 
-                new_df = scrapers.fetch_nippon(month, YEARS[0])
-            elif fund_name == "HDFC Nifty 50 Index": 
-                new_df = scrapers.fetch_hdfc(month, YEARS[0])
+            if fund_name == "PPFAS Flexi Cap": new_df = scrapers.fetch_ppfas(month, YEARS[0])
+            elif fund_name == "Nippon India Small Cap": new_df = scrapers.fetch_nippon(month, YEARS[0])
+            elif fund_name == "HDFC Nifty 50 Index": new_df = scrapers.fetch_hdfc(month, YEARS[0])
             
-            # Merge Logic
             if new_df is not None:
                 new_df["ISIN"] = new_df["ISIN"].astype(str).str.strip()
                 master_df = pd.merge(master_df, new_df, on="ISIN", how="outer", suffixes=("", "_new"))
-                
-                # Fill missing metadata from new data
                 if "Stock Name_new" in master_df.columns:
                     master_df["Stock Name"] = master_df["Stock Name"].fillna(master_df["Stock Name_new"])
                     master_df.drop(columns=["Stock Name_new"], inplace=True)
-                
-                # Update Quantity Column
                 if f"{col_name}_new" in master_df.columns:
                     master_df[col_name] = master_df[f"{col_name}_new"]
                     master_df.drop(columns=[f"{col_name}_new"], inplace=True)
-        
         bar.progress((i + 1) / len(MONTHS))
     
+    master_df = normalize_names(master_df)
     master_df.to_excel(output_file, index=False)
-    status.empty() # Clear status
-    bar.empty()    # Clear progress bar
+    status.empty()
+    bar.empty()
     return master_df
 
 # ===========================
@@ -78,21 +81,26 @@ def run_update_process(fund_name):
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1077/1077114.png", width=42)
     
-    # Mode Selector (Single vs Compare)
     app_mode = st.radio("Mode", ["Single View", "Compare Funds"], label_visibility="collapsed")
     st.markdown("---")
 
     if app_mode == "Single View":
         st.markdown("### Workspace")
-        selected_fund = st.selectbox("Active Portfolio", list(FUND_CONFIG.keys()))
+        # ADDED on_change callback to activate dashboard instantly
+        selected_fund = st.selectbox(
+            "Active Portfolio", 
+            list(FUND_CONFIG.keys()), 
+            on_change=activate_dashboard 
+        )
         current_file = FUND_CONFIG[selected_fund]["file"]
         
         st.markdown("<br>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1:
             if st.button("↻ Sync"):
-                with st.spinner("Scraping..."):
+                with st.spinner("Scraping & Cleaning..."):
                     run_update_process(selected_fund)
+                    activate_dashboard() # Ensure dashboard shows after sync
                     st.rerun()
         if os.path.exists(current_file):
             with open(current_file, "rb") as f:
@@ -107,7 +115,7 @@ with st.sidebar:
             available_months = [c.replace("Qty_", "").replace(f"_{YEARS[0]}", "") for c in temp.columns if "Qty_" in c]
         view_month = st.selectbox("Period", ["All Months"] + available_months) if available_months else "All Months"
         
-    else: # Compare Mode Sidebar
+    else: 
         st.markdown("### ⚔️ Compare")
         st.caption("Select two funds to find overlapping holdings.")
         fund_a = st.selectbox("Base Fund (A)", list(FUND_CONFIG.keys()), index=0)
@@ -116,8 +124,8 @@ with st.sidebar:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Analyze Overlap", type="primary"):
             st.session_state['run_compare'] = True
-    
-    # --- NEW: TUTORIAL / AVAILABLE FUNDS SECTION ---
+            activate_dashboard() # Switch to view on click
+
     st.markdown("---")
     with st.expander("ℹ️ Supported Funds"):
         st.caption("The following funds are currently supported for auto-syncing:")
@@ -130,9 +138,13 @@ with st.sidebar:
 # ===========================
 
 if app_mode == "Single View":
-    # Check if data exists BEFORE rendering the specific fund header
-    if os.path.exists(current_file):
-        # --- HEADER (Only shown if we have data) ---
+    # 1. CHECK: Is the dashboard explicitly active?
+    # 2. CHECK: Does the file exist?
+    
+    show_dashboard = st.session_state["dashboard_active"] and os.path.exists(current_file)
+
+    if show_dashboard:
+        # --- RENDER DASHBOARD ---
         st.markdown(f"""
             <div style="margin-bottom: 2rem; padding-top: 1rem;">
                 <h1 style="font-size: 2rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px;">
@@ -143,10 +155,11 @@ if app_mode == "Single View":
         """, unsafe_allow_html=True)
 
         df = pd.read_excel(current_file)
+        df = normalize_names(df)
+        
         qty_cols = [c for c in df.columns if "Qty_" in c]
         for c in qty_cols: df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
 
-        # --- DATA PREP ---
         present_qty_cols = [c for c in qty_cols if c in df.columns]
         latest_col = None
         
@@ -154,27 +167,20 @@ if app_mode == "Single View":
             def get_month_index(col_name):
                 m_name = col_name.replace("Qty_", "").replace(f"_{YEARS[0]}", "")
                 return MONTHS.index(m_name) if m_name in MONTHS else -1
-            
-            # Sort chronologically to find latest data
             sorted_cols = sorted(present_qty_cols, key=get_month_index)
             latest_col = sorted_cols[-1]
 
-        # --- FILTERING LOGIC ---
         if view_month != "All Months":
             target_col = f"Qty_{view_month}_{YEARS[0]}"
-            # Specific month view: Only show active in that month
             display_df = df[df[target_col] > 0][["Stock Name", "ISIN", target_col]].copy()
             view_cols = [target_col]
             active_count = len(display_df)
         else:
-            # All months view: Show history of any stock held at least once
-            # Metric shows CURRENT active holdings
             mask = df[present_qty_cols].sum(axis=1) > 0
             display_df = df[mask][["Stock Name", "ISIN"] + present_qty_cols].copy()
             view_cols = present_qty_cols
             active_count = len(df[df[latest_col] > 0]) if latest_col else 0
 
-        # --- METRICS ---
         top_stock = "N/A"
         if latest_col and not df.empty:
             top_series = df.sort_values(by=latest_col, ascending=False).iloc[0]
@@ -194,12 +200,9 @@ if app_mode == "Single View":
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- TABS & VISUALS ---
         if latest_col:
-            # Fund Flow Calculation (Entries/Exits)
             new_entries_df = pd.DataFrame()
             exits_df = pd.DataFrame()
-            
             if len(sorted_cols) >= 2:
                 curr_col = sorted_cols[-1]
                 prev_col = sorted_cols[-2]
@@ -208,18 +211,13 @@ if app_mode == "Single View":
                 mask_exit = (df[prev_col] > 0) & (df[curr_col] == 0)
                 exits_df = df[mask_exit][["Stock Name", prev_col]].rename(columns={prev_col: "Qty"})
 
-            # Tab Rendering
             tab1, tab2, tab3, tab4 = st.tabs(["🌊 Fund Flow", "Overview", "Data Grid", "Analytics"])
             
             with tab1:
-                if len(sorted_cols) < 2:
-                    st.warning("⚠️ Need at least 2 months of data to calculate Entry/Exit flows.")
-                else:
-                    current_month_name = latest_col.replace("Qty_", "").replace(f"_{YEARS[0]}", "")
-                    ui.render_fund_flow(new_entries_df, exits_df, current_month_name)
+                if len(sorted_cols) < 2: st.warning("⚠️ Need at least 2 months of data to calculate Entry/Exit flows.")
+                else: ui.render_fund_flow(new_entries_df, exits_df, latest_col.replace("Qty_", "").replace(f"_{YEARS[0]}", ""))
 
-            with tab2:
-                ui.render_treemap(df[df[latest_col]>0].nlargest(30, latest_col), latest_col)
+            with tab2: ui.render_treemap(df[df[latest_col]>0].nlargest(30, latest_col), latest_col)
             
             with tab3:
                 if "Stock Name" in display_df.columns:
@@ -235,13 +233,12 @@ if app_mode == "Single View":
                 ui.render_trend_chart(df, stock, qty_cols, YEARS)
     
     else:
-        # --- NEW LANDING PAGE ---
-        # Capture the return value
+        # --- SHOW LANDING PAGE (Default State) ---
         start_clicked = ui.render_landing_page()
         
-        # If clicked, trigger initialization
         if start_clicked:
-            with st.spinner("Connecting..."):
+            activate_dashboard() # Set state to True
+            with st.spinner("Connecting & Cleaning Database..."):
                 run_update_process(selected_fund)
                 st.rerun()
 
@@ -254,7 +251,6 @@ else: # Compare Mode View
     """, unsafe_allow_html=True)
 
     if st.session_state.get('run_compare', False):
-        # Call the analysis module
         results = analysis.compare_portfolios(fund_a, fund_b)
         ui.render_comparison_dashboard(fund_a, fund_b, results)
     else:
