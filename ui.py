@@ -23,7 +23,7 @@ def apply_clean_saas_theme():
 
             /* 3. SIDEBAR */
             [data-testid="stSidebar"] {
-                background-color: #FFFFFF;
+                background-color: #f5f5dc;
                 border-right: 1px solid #F3F4F6;
             }
             
