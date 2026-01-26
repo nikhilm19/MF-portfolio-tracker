@@ -41,11 +41,44 @@ def fetch_ppfas(month, year):
                 row_vals = [str(x).strip() for x in row.values if pd.notna(x)]
                 isin = isin_match.group(0)
                 name = next((s for s in row_vals if len(s) > 4 and s != isin and not re.search(r'\d', s)), "Unknown")
-                qty = next((float(v.replace(",","")) for v in row_vals if v.replace(",","").replace(".","").isdigit() and float(v.replace(",","")) > 0), 0)
-                if qty > 0: valid_holdings.append({"Stock Name": name, "ISIN": isin, f"Qty_{month}_{year}": qty})
+                
+                # Extract numbers and percentages in order
+                numbers = []
+                nav_pct = 0
+                for v in row_vals:
+                    if "%" in str(v):
+                        try:
+                            pct_val = float(str(v).replace(",","").replace("%","").strip())
+                            if 0 < pct_val <= 100:
+                                nav_pct = pct_val
+                        except: pass
+                    else:
+                        try:
+                            num_val = float(str(v).replace(",",""))
+                            if num_val > 0:
+                                numbers.append(num_val)
+                        except: pass
+                
+                # First number is typically Qty, second is Market Value
+                qty = numbers[0] if len(numbers) > 0 else 0
+                market_val = numbers[1] if len(numbers) > 1 else 0
+                
+                # If no % found with symbol, check if there's a small decimal (like 0.0793 = 7.93%)
+                if nav_pct == 0 and len(numbers) > 2:
+                    potential_pct = numbers[2]
+                    nav_pct = potential_pct
+                   
+                
+                if qty > 0: valid_holdings.append({"Stock Name": name, "ISIN": isin, f"Qty_{month}_{year}": qty, f"MarketValue_{month}_{year}": market_val, f"NavPct_{month}_{year}": nav_pct})
         
         if not valid_holdings: return None
-        return pd.DataFrame(valid_holdings).groupby("ISIN", as_index=False).agg({"Stock Name": "first", f"Qty_{month}_{year}": "sum"})
+        df = pd.DataFrame(valid_holdings)
+        agg_dict = {"Stock Name": "first", f"Qty_{month}_{year}": "sum"}
+        if f"MarketValue_{month}_{year}" in df.columns:
+            agg_dict[f"MarketValue_{month}_{year}"] = "sum"
+        if f"NavPct_{month}_{year}" in df.columns:
+            agg_dict[f"NavPct_{month}_{year}"] = "first"
+        return df.groupby("ISIN", as_index=False).agg(agg_dict)
     except: return None
 
 # --- NIPPON ENGINE ---
@@ -87,7 +120,21 @@ def fetch_nippon(month, year):
 
         df.columns = df.iloc[header_idx]
         df = df.iloc[header_idx+1:].copy()
-        col_map = {c: "Stock Name" if "name of the instrument" in str(c).lower() else "ISIN" if "isin" in str(c).lower() else f"Qty_{month}_{year}" if "quantity" in str(c).lower() else c for c in df.columns}
+        
+        # Flexible column mapping
+        col_map = {}
+        for c in df.columns:
+            c_lower = str(c).lower()
+            if "name" in c_lower and "instrument" in c_lower:
+                col_map[c] = "Stock Name"
+            elif "isin" in c_lower:
+                col_map[c] = "ISIN"
+            elif "quantity" in c_lower or "qty" in c_lower:
+                col_map[c] = f"Qty_{month}_{year}"
+            elif "market" in c_lower and "value" in c_lower:
+                col_map[c] = f"MarketValue_{month}_{year}"
+            elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
+                col_map[c] = f"NavPct_{month}_{year}"
         df = df.rename(columns=col_map)
         
         valid_rows = []
@@ -96,7 +143,9 @@ def fetch_nippon(month, year):
             if isin.startswith("INE") and "total" not in str(row.get("Stock Name", "")).lower():
                 try:
                     qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
-                    if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
+                    market_val = float(str(row.get(f"MarketValue_{month}_{year}", 0)).replace(",", "")) if f"MarketValue_{month}_{year}" in df.columns else 0
+                    nav_pct = float(str(row.get(f"NavPct_{month}_{year}", 0)).replace(",", "").replace("%", "")) if f"NavPct_{month}_{year}" in df.columns else 0
+                    if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty, f"MarketValue_{month}_{year}": market_val, f"NavPct_{month}_{year}": nav_pct})
                 except: continue
         return pd.DataFrame(valid_rows)
     except: return None
@@ -135,21 +184,68 @@ def fetch_hdfc(month, year):
 
         target_df.columns = target_df.iloc[header_row]
         df = target_df.iloc[header_row+1:].copy()
+        
+        # Flexible column mapping
         col_map = {}
         for c in df.columns:
-            val = str(c).lower().strip()
-            if "isin" in val: col_map[c] = "ISIN"
-            elif "name" in val and "instrument" in val: col_map[c] = "Stock Name"
-            elif "quantity" in val: col_map[c] = f"Qty_{month}_{year}"
+            c_lower = str(c).lower().strip()
+            if "isin" in c_lower:
+                col_map[c] = "ISIN"
+            elif "name" in c_lower and ("instrument" in c_lower or "security" in c_lower):
+                col_map[c] = "Stock Name"
+            elif "quantity" in c_lower or "qty" in c_lower:
+                col_map[c] = f"Qty_{month}_{year}"
+            elif "market" in c_lower and "value" in c_lower:
+                col_map[c] = f"MarketValue_{month}_{year}"
+            elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
+                col_map[c] = f"NavPct_{month}_{year}"
         df = df.rename(columns=col_map)
+        
+        # Ensure we have the required columns
+        if "ISIN" not in df.columns or "Stock Name" not in df.columns or f"Qty_{month}_{year}" not in df.columns:
+            return None
         
         valid_rows = []
         for _, row in df.iterrows():
-            isin = str(row.get("ISIN", "")).upper()
-            if isin.startswith("INE"):
-                try:
-                    qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
-                    if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
-                except: continue
+            try:
+                isin = str(row.get("ISIN", "")).upper().strip()
+                if not isin.startswith("INE"):
+                    continue
+                    
+                stock_name = str(row.get("Stock Name", "Unknown"))
+                qty_val = str(row.get(f"Qty_{month}_{year}", "0")).replace(",", "").replace(" ", "")
+                
+                # Skip if qty is invalid
+                if not qty_val or qty_val.lower() in ["nan", "n/a", "none", ""]:
+                    continue
+                    
+                qty = float(qty_val)
+                if qty <= 0:
+                    continue
+                
+                record = {
+                    "Stock Name": stock_name,
+                    "ISIN": isin,
+                    f"Qty_{month}_{year}": qty
+                }
+                
+                # Add optional columns if they exist
+                if f"MarketValue_{month}_{year}" in df.columns:
+                    try:
+                        mv = float(str(row.get(f"MarketValue_{month}_{year}", 0)).replace(",", ""))
+                        record[f"MarketValue_{month}_{year}"] = mv
+                    except:
+                        record[f"MarketValue_{month}_{year}"] = 0
+                        
+                if f"NavPct_{month}_{year}" in df.columns:
+                    try:
+                        np_val = float(str(row.get(f"NavPct_{month}_{year}", 0)).replace(",", "").replace("%", ""))
+                        record[f"NavPct_{month}_{year}"] = np_val
+                    except:
+                        record[f"NavPct_{month}_{year}"] = 0
+                
+                valid_rows.append(record)
+            except Exception as e:
+                continue
         return pd.DataFrame(valid_rows)
     except: return None

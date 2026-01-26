@@ -19,10 +19,19 @@ ui.apply_clean_saas_theme()
 # --- SESSION STATE INITIALIZATION ---
 if "dashboard_active" not in st.session_state:
     st.session_state["dashboard_active"] = False
+if "app_mode" not in st.session_state:
+    st.session_state["app_mode"] = "Single View"
 
 def activate_dashboard():
     """Callback to activate dashboard when user selects a fund"""
     st.session_state["dashboard_active"] = True
+
+def go_home():
+    """Reset to home state and navigate back to Single View"""
+    st.session_state["dashboard_active"] = False
+    st.session_state["run_compare"] = False
+    st.session_state["app_mode"] = "Single View"
+    st.rerun()
 
 #Helper: Normalize Stock Names
 def normalize_names(df):
@@ -30,6 +39,9 @@ def normalize_names(df):
         df["Stock Name"] = df["Stock Name"].astype(str)
         df["Stock Name"] = df["Stock Name"].str.replace(r'\s+Limited\s*$', '', case=False, regex=True)
         df["Stock Name"] = df["Stock Name"].str.replace(r'\s+Ltd\.?\s*$', '', case=False, regex=True)
+        # Remove special characters but keep alphanumeric, spaces, hyphens, and ampersand
+        df["Stock Name"] = df["Stock Name"].str.replace(r'[^\w\s\-&]', '', regex=True)
+        df["Stock Name"] = df["Stock Name"].str.replace(r'\s+', ' ', regex=True)  # Collapse multiple spaces
         df["Stock Name"] = df["Stock Name"].str.strip()
     return df
 
@@ -61,12 +73,28 @@ def run_update_process(fund_name):
             if new_df is not None:
                 new_df["ISIN"] = new_df["ISIN"].astype(str).str.strip()
                 master_df = pd.merge(master_df, new_df, on="ISIN", how="outer", suffixes=("", "_new"))
+                
+                # Handle Stock Name
                 if "Stock Name_new" in master_df.columns:
                     master_df["Stock Name"] = master_df["Stock Name"].fillna(master_df["Stock Name_new"])
                     master_df.drop(columns=["Stock Name_new"], inplace=True)
+                
+                # Handle Qty column
                 if f"{col_name}_new" in master_df.columns:
                     master_df[col_name] = master_df[f"{col_name}_new"]
                     master_df.drop(columns=[f"{col_name}_new"], inplace=True)
+                
+                # Handle MarketValue column
+                market_val_col = f"MarketValue_{month}_{YEARS[0]}"
+                if f"{market_val_col}_new" in master_df.columns:
+                    master_df[market_val_col] = master_df[f"{market_val_col}_new"]
+                    master_df.drop(columns=[f"{market_val_col}_new"], inplace=True)
+                
+                # Handle NavPct column
+                nav_pct_col = f"NavPct_{month}_{YEARS[0]}"
+                if f"{nav_pct_col}_new" in master_df.columns:
+                    master_df[nav_pct_col] = master_df[f"{nav_pct_col}_new"]
+                    master_df.drop(columns=[f"{nav_pct_col}_new"], inplace=True)
         bar.progress((i + 1) / len(MONTHS))
     
     master_df = normalize_names(master_df)
@@ -81,7 +109,11 @@ def run_update_process(fund_name):
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1077/1077114.png", width=42)
     
-    app_mode = st.radio("Mode", ["Single View", "Compare Funds"], label_visibility="collapsed")
+    st.markdown("---")
+    st.markdown("### Mode")
+    mode_index = 0 if st.session_state.get("app_mode", "Single View") == "Single View" else 1
+    app_mode = st.radio("", ["Single View", "Compare Funds"], index=mode_index, label_visibility="collapsed")
+    st.session_state["app_mode"] = app_mode
     st.markdown("---")
 
     if app_mode == "Single View":
@@ -123,15 +155,11 @@ with st.sidebar:
         
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Analyze Overlap", type="primary"):
-            st.session_state['run_compare'] = True
-            activate_dashboard() # Switch to view on click
-
-    st.markdown("---")
-    with st.expander("ℹ️ Supported Funds"):
-        st.caption("The following funds are currently supported for auto-syncing:")
-        for fund in FUND_CONFIG.keys():
-            st.markdown(f"**• {fund}**")
-        st.caption("Select one in 'Single View' to begin.")
+            if fund_a == fund_b:
+                st.error("❌ Please select two different funds to compare.")
+            else:
+                st.session_state['run_compare'] = True
+                activate_dashboard() # Switch to view on click
 
 # ===========================
 # 4. MAIN VIEW CONTROLLER
@@ -144,6 +172,12 @@ if app_mode == "Single View":
     show_dashboard = st.session_state["dashboard_active"] and os.path.exists(current_file)
 
     if show_dashboard:
+        # --- HOME BUTTON AT TOP ---
+        if st.button("← Back to Home", key="home_btn"):
+            go_home()
+        
+        st.markdown("---")
+        
         # --- RENDER DASHBOARD ---
         st.markdown(f"""
             <div style="margin-bottom: 2rem; padding-top: 1rem;">
@@ -182,9 +216,15 @@ if app_mode == "Single View":
             active_count = len(df[df[latest_col] > 0]) if latest_col else 0
 
         top_stock = "N/A"
+        top_nav_pct = 0
         if latest_col and not df.empty:
             top_series = df.sort_values(by=latest_col, ascending=False).iloc[0]
-            if top_series[latest_col] > 0: top_stock = top_series['Stock Name']
+            if top_series[latest_col] > 0: 
+                top_stock = top_series['Stock Name']
+                # Get corresponding NavPct column
+                nav_pct_col = latest_col.replace("Qty_", "NavPct_")
+                if nav_pct_col in df.columns:
+                    top_nav_pct = top_series[nav_pct_col]
         
         delta_pct = 0
         if len(qty_cols) >= 2 and view_month == "All Months":
@@ -193,7 +233,7 @@ if app_mode == "Single View":
 
         col1, col2, col3 = st.columns(3)
         with col1: ui.render_metric_card("Total Assets", active_count, "Active Positions", "neu")
-        with col2: ui.render_metric_card("Top Allocation", top_stock[:15]+"..", "Highest Weight", "pos")
+        with col2: ui.render_metric_card("Top Allocation", top_stock[:15]+"..", f"{top_nav_pct*100:.2f}% of NAV", "pos")
         with col3: 
             arrow = "↑" if delta_pct >= 0 else "↓"
             ui.render_metric_card("Volume Velocity", f"{abs(delta_pct):.1f}%", f"{arrow} MoM Change", "pos" if delta_pct >= 0 else "neg")
@@ -203,19 +243,46 @@ if app_mode == "Single View":
         if latest_col:
             new_entries_df = pd.DataFrame()
             exits_df = pd.DataFrame()
-            if len(sorted_cols) >= 2:
-                curr_col = sorted_cols[-1]
-                prev_col = sorted_cols[-2]
-                mask_new = (df[prev_col] == 0) & (df[curr_col] > 0)
-                new_entries_df = df[mask_new][["Stock Name", curr_col]].rename(columns={curr_col: "Qty"})
-                mask_exit = (df[prev_col] > 0) & (df[curr_col] == 0)
-                exits_df = df[mask_exit][["Stock Name", prev_col]].rename(columns={prev_col: "Qty"})
+            
+            # Determine which month to show in Fund Flow
+            if view_month != "All Months":
+                current_month_col = f"Qty_{view_month}_{YEARS[0]}"
+                # Find previous month
+                current_idx = MONTHS.index(view_month) if view_month in MONTHS else -1
+                if current_idx > 0:
+                    prev_month = MONTHS[current_idx - 1]
+                    prev_month_col = f"Qty_{prev_month}_{YEARS[0]}"
+                    if prev_month_col in df.columns and current_month_col in df.columns:
+                        mask_new = (df[prev_month_col] == 0) & (df[current_month_col] > 0)
+                        new_entries_df = df[mask_new][["Stock Name", current_month_col]].rename(columns={current_month_col: "Qty"})
+                        mask_exit = (df[prev_month_col] > 0) & (df[current_month_col] == 0)
+                        exits_df = df[mask_exit][["Stock Name", prev_month_col]].rename(columns={prev_month_col: "Qty"})
+                        fund_flow_label = view_month
+                    else:
+                        fund_flow_label = view_month
+                else:
+                    fund_flow_label = view_month
+            else:
+                # Use latest months for "All Months" view
+                if len(sorted_cols) >= 2:
+                    curr_col = sorted_cols[-1]
+                    prev_col = sorted_cols[-2]
+                    mask_new = (df[prev_col] == 0) & (df[curr_col] > 0)
+                    new_entries_df = df[mask_new][["Stock Name", curr_col]].rename(columns={curr_col: "Qty"})
+                    mask_exit = (df[prev_col] > 0) & (df[curr_col] == 0)
+                    exits_df = df[mask_exit][["Stock Name", prev_col]].rename(columns={prev_col: "Qty"})
+                    fund_flow_label = latest_col.replace("Qty_", "").replace(f"_{YEARS[0]}", "")
+                else:
+                    fund_flow_label = "N/A"
 
-            tab1, tab2, tab3, tab4 = st.tabs(["🌊 Fund Flow", "Overview", "Data Grid", "Analytics"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Fund Flow", "Overview", "Data Grid", "Analytics"])
             
             with tab1:
-                if len(sorted_cols) < 2: st.warning("⚠️ Need at least 2 months of data to calculate Entry/Exit flows.")
-                else: ui.render_fund_flow(new_entries_df, exits_df, latest_col.replace("Qty_", "").replace(f"_{YEARS[0]}", ""))
+                if view_month != "All Months" and MONTHS.index(view_month) == 0:
+                    st.warning("⚠️ January has no previous month for Entry/Exit comparison.")
+                elif len(sorted_cols) < 2 and view_month == "All Months":
+                    st.warning("⚠️ Need at least 2 months of data to calculate Entry/Exit flows.")
+                else: ui.render_fund_flow(new_entries_df, exits_df, fund_flow_label)
 
             with tab2: ui.render_treemap(df[df[latest_col]>0].nlargest(30, latest_col), latest_col)
             
@@ -243,6 +310,12 @@ if app_mode == "Single View":
                 st.rerun()
 
 else: # Compare Mode View
+    # --- HOME BUTTON AT TOP ---
+    if st.button("← Back to Home", key="home_btn_compare"):
+        go_home()
+    
+    st.markdown("---")
+    
     st.markdown(f"""
         <div style="margin-bottom: 2rem; padding-top: 1rem;">
             <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Overlap Tool</h1>
@@ -255,3 +328,12 @@ else: # Compare Mode View
         ui.render_comparison_dashboard(fund_a, fund_b, results)
     else:
         st.info("Select two funds from the sidebar and click 'Analyze Overlap'.")
+
+# ===========================
+# FOOTER - SUPPORTED FUNDS
+# ===========================
+st.markdown("---")
+with st.expander("ℹ️ Supported Funds"):
+    st.caption("The following funds are currently supported for auto-syncing:")
+    for fund in FUND_CONFIG.keys():
+        st.markdown(f"**• {fund}**")

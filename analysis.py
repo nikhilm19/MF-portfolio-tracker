@@ -1,6 +1,7 @@
 # analysis.py
 import pandas as pd
 import os
+import re
 from config import FUND_CONFIG, YEARS, MONTHS
 
 def load_fund_data(fund_name):
@@ -10,9 +11,15 @@ def load_fund_data(fund_name):
         return None
     
     df = pd.read_excel(file_path)
-    # Clean ISIN
+    # Clean ISIN - This is the primary key for matching
     if "ISIN" in df.columns:
-        df["ISIN"] = df["ISIN"].astype(str).str.strip()
+        df["ISIN"] = df["ISIN"].astype(str).str.strip().str.upper()
+    # Clean Stock Names - remove special characters and extra whitespace
+    if "Stock Name" in df.columns:
+        df["Stock Name"] = df["Stock Name"].astype(str).str.strip()
+        # Remove special characters but keep alphanumeric, spaces, and hyphens
+        df["Stock Name"] = df["Stock Name"].str.replace(r'[^\w\s\-&]', '', regex=True)
+        df["Stock Name"] = df["Stock Name"].str.replace(r'\s+', ' ', regex=True)  # Collapse multiple spaces
     return df
 
 def get_latest_month_column(df):
