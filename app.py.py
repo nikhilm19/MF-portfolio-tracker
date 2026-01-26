@@ -116,6 +116,14 @@ with st.sidebar:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Analyze Overlap", type="primary"):
             st.session_state['run_compare'] = True
+    
+    # --- NEW: TUTORIAL / AVAILABLE FUNDS SECTION ---
+    st.markdown("---")
+    with st.expander("ℹ️ Supported Funds"):
+        st.caption("The following funds are currently supported for auto-syncing:")
+        for fund in FUND_CONFIG.keys():
+            st.markdown(f"**• {fund}**")
+        st.caption("Select one in 'Single View' to begin.")
 
 # ===========================
 # 4. MAIN VIEW CONTROLLER
@@ -227,6 +235,7 @@ if app_mode == "Single View":
                 ui.render_trend_chart(df, stock, qty_cols, YEARS)
     
     else:
+        # --- NEW LANDING PAGE ---
         # Capture the return value
         start_clicked = ui.render_landing_page()
         
