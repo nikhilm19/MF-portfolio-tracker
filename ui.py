@@ -33,12 +33,28 @@ def apply_clean_saas_theme():
                 font-weight: 500;
             }
 
-            /* NAVIGATION ICON */
-            [data-testid="stSidebar"] button[kind="header"] svg,
-            [data-testid="stHeader"] button[kind="header"] svg,
+            /* --- FIXED NAVIGATION ICONS (ALWAYS DARK) --- */
+            /* 1. Sidebar Toggle (When Sidebar is Collapsed/Closed) */
+            [data-testid="stSidebarCollapsedControl"] {
+                color: #111827 !important;
+            }
             [data-testid="stSidebarCollapsedControl"] svg {
                 fill: #111827 !important;
+                color: #111827 !important;
             }
+
+            /* 2. Sidebar Close Button (When Sidebar is Open) */
+            [data-testid="stSidebar"] button[kind="header"] svg {
+                fill: #111827 !important;
+                color: #111827 !important;
+            }
+
+            /* 3. Top Right Menu (Three Dots) */
+            [data-testid="stHeader"] button[kind="header"] svg {
+                fill: #111827 !important;
+                color: #111827 !important;
+            }
+            /* -------------------------------------------- */
 
             /* 4. LANDING PAGE STYLES */
             .hero-container {
@@ -68,7 +84,6 @@ def apply_clean_saas_theme():
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
             }
-            /* Updated Subtitle Styles */
             .hero-subtitle-main {
                 font-size: 1.6rem;
                 color: #1F2937;
@@ -300,7 +315,6 @@ def render_landing_page():
         """, unsafe_allow_html=True)
         
         # --- PRIMARY CTA BUTTON (Pulsing) ---
-        # Returns True if clicked so app.py can trigger logic
         if st.button("⚡ Initialize Database", type="primary"):
             return True
 
