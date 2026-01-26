@@ -68,11 +68,20 @@ def apply_clean_saas_theme():
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
             }
-            .hero-subtitle {
-                font-size: 1.15rem;
+            /* Updated Subtitle Styles */
+            .hero-subtitle-main {
+                font-size: 1.6rem;
+                color: #1F2937;
+                font-weight: 700;
+                line-height: 1.3;
+                margin-bottom: 10px;
+            }
+            .hero-subtitle-desc {
+                font-size: 1.1rem;
                 color: #6B7280;
                 line-height: 1.6;
                 margin-bottom: 30px;
+                max-width: 90%;
             }
             
             /* Glass Card */
@@ -154,20 +163,17 @@ def apply_clean_saas_theme():
                 color: #FFFFFF !important;
             }
             
-            /* --- PULSING ANIMATION FOR PRIMARY CTA --- */
+            /* PULSE ANIMATION */
             @keyframes pulse-glow {
                 0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); }
                 70% { box-shadow: 0 0 0 12px rgba(255, 107, 0, 0); }
                 100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
             }
-            
-            /* Apply to Primary Buttons (The Initialize CTA) */
             div[data-testid="stButton"] button[kind="primary"] {
                 animation: pulse-glow 2s infinite;
                 font-size: 1.1rem;
                 padding: 0.8rem 2.5rem;
             }
-            /* --------------------------------------- */
 
             .stDownloadButton > button {
                 background: #F3F4F6; color: #374151 !important; box-shadow: none;
@@ -274,7 +280,7 @@ def render_comparison_dashboard(fund_a, fund_b, analysis_result):
     with c3: render_list_column("ONLY IN", fund_b.split()[0].upper(), len(unique_b_list), "#F3F4F6", "#374151", unique_b_list) 
 
 def render_landing_page():
-    # --- HERO SECTION (Clean, No Buttons) ---
+    # --- HERO SECTION ---
     c1, c2 = st.columns([1.2, 1], gap="large")
     
     with c1:
@@ -284,11 +290,19 @@ def render_landing_page():
             <h1 class="hero-title">
                 FundFlow <span class="hero-gradient">Analytics</span>
             </h1>
-            <p class="hero-subtitle">
-                Decode the strategy behind the NAV. We track every monthly buy and sell to educate you on exactly how funds manage your money.
+            <p class="hero-subtitle-main">
+                Decode the strategy behind the NAV.
+            </p>
+            <p class="hero-subtitle-desc">
+                We track every monthly buy and sell to educate you on exactly how funds manage your money.
             </p>
         </div>
         """, unsafe_allow_html=True)
+        
+        # --- PRIMARY CTA BUTTON (Pulsing) ---
+        # Returns True if clicked so app.py can trigger logic
+        if st.button("⚡ Initialize Database", type="primary"):
+            return True
 
     with c2:
         # Floating Glass Mockup
@@ -349,14 +363,4 @@ def render_landing_page():
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    
-    # --- BOTTOM CTA WITH PULSE ANIMATION ---
-    _, cta_col, _ = st.columns([1, 1, 1])
-    with cta_col:
-        st.markdown("<div style='text-align:center; margin-bottom:10px; color:#6B7280; font-weight:500;'>Ready to explore?</div>", unsafe_allow_html=True)
-        # Primary button gets the 'pulse-glow' animation from CSS
-        if st.button("⚡ Initialize Database", type="primary", use_container_width=True):
-            return True
-            
     return False
