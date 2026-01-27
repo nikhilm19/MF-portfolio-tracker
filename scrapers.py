@@ -1,4 +1,3 @@
-# scrapers.py
 import requests
 import pandas as pd
 import re
@@ -6,9 +5,19 @@ from bs4 import BeautifulSoup
 from io import BytesIO
 import calendar
 import datetime
+import warnings
 from config import FUND_CONFIG, HEADERS
 
-# --- PPFAS ENGINE ---
+warnings.filterwarnings("ignore")
+
+# --- HELPER: Month Mapping for Nippon ---
+MONTH_ABBR = {
+    "January": "Jan", "February": "Feb", "March": "Mar", "April": "Apr",
+    "May": "May", "June": "Jun", "July": "Jul", "August": "Aug",
+    "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec"
+}
+
+# --- PPFAS ENGINE (Restored from your working version) ---
 def fetch_ppfas(month, year):
     try:
         conf = FUND_CONFIG["PPFAS Flexi Cap"]
@@ -42,122 +51,167 @@ def fetch_ppfas(month, year):
                 isin = isin_match.group(0)
                 name = next((s for s in row_vals if len(s) > 4 and s != isin and not re.search(r'\d', s)), "Unknown")
                 
-                # Extract numbers and percentages in order
+                # Extract numbers
                 numbers = []
                 nav_pct = 0
                 for v in row_vals:
                     if "%" in str(v):
                         try:
                             pct_val = float(str(v).replace(",","").replace("%","").strip())
-                            if 0 < pct_val <= 100:
-                                nav_pct = pct_val
+                            if 0 < pct_val <= 100: nav_pct = pct_val
                         except: pass
                     else:
                         try:
                             num_val = float(str(v).replace(",",""))
-                            if num_val > 0:
-                                numbers.append(num_val)
+                            if num_val > 0: numbers.append(num_val)
                         except: pass
                 
-                # First number is typically Qty, second is Market Value
                 qty = numbers[0] if len(numbers) > 0 else 0
                 market_val = numbers[1] if len(numbers) > 1 else 0
                 
-                # If no % found with symbol, check if there's a small decimal (like 0.0793 = 7.93%)
                 if nav_pct == 0 and len(numbers) > 2:
-                    potential_pct = numbers[2]
-                    nav_pct = potential_pct
-                   
-                
+                    nav_pct = numbers[2]
+                    
                 if qty > 0: valid_holdings.append({"Stock Name": name, "ISIN": isin, f"Qty_{month}_{year}": qty, f"MarketValue_{month}_{year}": market_val, f"NavPct_{month}_{year}": nav_pct})
         
         if not valid_holdings: return None
         df = pd.DataFrame(valid_holdings)
         agg_dict = {"Stock Name": "first", f"Qty_{month}_{year}": "sum"}
-        if f"MarketValue_{month}_{year}" in df.columns:
-            agg_dict[f"MarketValue_{month}_{year}"] = "sum"
-        if f"NavPct_{month}_{year}" in df.columns:
-            agg_dict[f"NavPct_{month}_{year}"] = "first"
+        # Optional columns aggregation
+        if f"MarketValue_{month}_{year}" in df.columns: agg_dict[f"MarketValue_{month}_{year}"] = "sum"
+        if f"NavPct_{month}_{year}" in df.columns: agg_dict[f"NavPct_{month}_{year}"] = "first"
+        
         return df.groupby("ISIN", as_index=False).agg(agg_dict)
     except: return None
 
-# --- NIPPON ENGINE ---
+# --- NIPPON ENGINE (Fixed URL & Safer Column Parsing) ---
 def fetch_nippon(month, year):
     try:
         conf = FUND_CONFIG["Nippon India Small Cap"]
-        month_short, year_short = month[:3], str(year)[-2:]
+        # Use precise mapping (e.g., July -> Jul, not July)
+        mon_abbr = MONTH_ABBR.get(month, month[:3])
+        yy = str(year)[-2:]
         target_url = None
         
-        # 1. Try Direct Patterns
-        patterns = [
-            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month_short}-{year_short}.xls",
-            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month}-{year}.xls"
+        # 1. Try Specific URL Patterns (Fastest)
+        urls = [
+            f"https://mf.nipponindiaim.com/Funds/PortfolioDisclosures/MonthlyPortfolio/NIMF-MONTHLY-PORTFOLIO-{mon_abbr}-{yy}.xls",
+            f"https://mf.nipponindiaim.com/Funds/PortfolioDisclosures/MonthlyPortfolio/NIMF-MONTHLY-PORTFOLIO-{mon_abbr.upper()}-{yy}.xls",
+            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{mon_abbr}-{yy}.xls"
         ]
-        for url in patterns:
-            try: 
-                if requests.head(url, headers=HEADERS, timeout=3).status_code == 200: target_url = url; break
+        
+        for u in urls:
+            try:
+                if requests.head(u, headers=HEADERS, timeout=5, verify=False).status_code == 200:
+                    target_url = u
+                    break
             except: continue
-            
-        # 2. Try Regex
+
+        # 2. Fallback: Regex Search on Website (If direct URLs fail)
         if not target_url:
-            resp = requests.get(conf["url"], headers=HEADERS, timeout=10)
-            regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
-            matches = re.findall(regex, resp.text, re.IGNORECASE)
-            if matches:
-                link = matches[0]
-                target_url = conf["base_url"] + link if link.startswith("/") else link
+            try:
+                resp = requests.get(conf["url"], headers=HEADERS, timeout=10, verify=False)
+                # Regex to find links matching month/year
+                regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{mon_abbr})[^"\']*(?:{year}|{yy})[^"\']*\.xls[x]?)["\']'
+                matches = re.findall(regex, resp.text, re.IGNORECASE)
+                if matches:
+                    link = matches[0]
+                    target_url = conf["base_url"] + link if link.startswith("/") else link
+            except: pass
         
         if not target_url: return None
 
-        resp = requests.get(target_url, headers=HEADERS, timeout=30)
+        print(f"   Fetching Nippon from: {target_url}")
+        resp = requests.get(target_url, headers=HEADERS, timeout=30, verify=False)
+        
+        # Parse Excel
         try: df = pd.read_excel(BytesIO(resp.content), sheet_name=conf["sheet"], header=None, engine='openpyxl')
-        except: df = pd.read_excel(BytesIO(resp.content), sheet_name=conf["sheet"], header=None, engine='xlrd')
+        except: 
+            try: df = pd.read_excel(BytesIO(resp.content), sheet_name=conf["sheet"], header=None, engine='xlrd')
+            except:
+                # Last resort: Try finding sheet by name if config name failed
+                xls = pd.ExcelFile(BytesIO(resp.content))
+                sheet = next((s for s in xls.sheet_names if "SC" in s or "Small" in s), xls.sheet_names[0])
+                df = pd.read_excel(xls, sheet_name=sheet, header=None)
 
+        # Locate Header Row
         header_idx = None
         for idx, row in df.iterrows():
-            if "name of the instrument" in row.astype(str).str.cat(sep=' ').lower(): header_idx = idx; break
+            row_str = row.astype(str).str.cat(sep=' ').lower()
+            if "name of the instrument" in row_str or "isin" in row_str: 
+                header_idx = idx
+                break
+        
         if header_idx is None: return None
 
         df.columns = df.iloc[header_idx]
         df = df.iloc[header_idx+1:].copy()
         
-        # Flexible column mapping
+        # Robust Column Mapping
         col_map = {}
         for c in df.columns:
-            c_lower = str(c).lower()
+            c_lower = str(c).lower().strip()
             if "name" in c_lower and "instrument" in c_lower:
                 col_map[c] = "Stock Name"
             elif "isin" in c_lower:
                 col_map[c] = "ISIN"
             elif "quantity" in c_lower or "qty" in c_lower:
                 col_map[c] = f"Qty_{month}_{year}"
+            # Optional Cols
             elif "market" in c_lower and "value" in c_lower:
                 col_map[c] = f"MarketValue_{month}_{year}"
             elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
                 col_map[c] = f"NavPct_{month}_{year}"
+                
         df = df.rename(columns=col_map)
+        
+        # Validation: We MUST have ISIN, Name, and Qty. Others are optional.
+        req_cols = ["ISIN", "Stock Name", f"Qty_{month}_{year}"]
+        if not all(col in df.columns for col in req_cols):
+            return None
         
         valid_rows = []
         for _, row in df.iterrows():
-            isin = str(row.get("ISIN", "")).upper()
-            if isin.startswith("INE") and "total" not in str(row.get("Stock Name", "")).lower():
-                try:
-                    qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
-                    market_val = float(str(row.get(f"MarketValue_{month}_{year}", 0)).replace(",", "")) if f"MarketValue_{month}_{year}" in df.columns else 0
-                    nav_pct = float(str(row.get(f"NavPct_{month}_{year}", 0)).replace(",", "").replace("%", "")) if f"NavPct_{month}_{year}" in df.columns else 0
-                    if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty, f"MarketValue_{month}_{year}": market_val, f"NavPct_{month}_{year}": nav_pct})
-                except: continue
+            try:
+                isin = str(row.get("ISIN", "")).upper().strip()
+                # Basic validation
+                if not isin.startswith("INE") or "total" in str(row.get("Stock Name", "")).lower():
+                    continue
+                
+                # Parse Qty (Mandatory)
+                qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", "").replace("-", "0"))
+                if qty <= 0: continue
+                
+                record = {
+                    "Stock Name": row["Stock Name"], 
+                    "ISIN": isin, 
+                    f"Qty_{month}_{year}": qty
+                }
+                
+                # Parse Optional Cols (Safely)
+                if f"MarketValue_{month}_{year}" in df.columns:
+                    try: record[f"MarketValue_{month}_{year}"] = float(str(row[f"MarketValue_{month}_{year}"]).replace(",", ""))
+                    except: pass
+                
+                if f"NavPct_{month}_{year}" in df.columns:
+                    try: record[f"NavPct_{month}_{year}"] = float(str(row[f"NavPct_{month}_{year}"]).replace(",", "").replace("%", ""))
+                    except: pass
+                    
+                valid_rows.append(record)
+            except: continue
+            
         return pd.DataFrame(valid_rows)
-    except: return None
+    except Exception as e:
+        print(f"Error in Nippon: {e}")
+        return None
 
-# --- HDFC ENGINE ---
+# --- HDFC ENGINE (Restored from your working version) ---
 def fetch_hdfc(month, year):
     try:
         conf = FUND_CONFIG["HDFC Nifty 50 Index"]
         month_num = datetime.datetime.strptime(month, "%B").month
         last_day = calendar.monthrange(year, month_num)[1]
         
-        # Calculate folder date (Next month logic)
         date_obj = datetime.date(year, month_num, 1)
         next_month = date_obj.replace(day=28) + datetime.timedelta(days=4)
         folder_path = next_month.strftime("%Y-%m")
@@ -185,67 +239,37 @@ def fetch_hdfc(month, year):
         target_df.columns = target_df.iloc[header_row]
         df = target_df.iloc[header_row+1:].copy()
         
-        # Flexible column mapping
         col_map = {}
         for c in df.columns:
             c_lower = str(c).lower().strip()
-            if "isin" in c_lower:
-                col_map[c] = "ISIN"
-            elif "name" in c_lower and ("instrument" in c_lower or "security" in c_lower):
-                col_map[c] = "Stock Name"
-            elif "quantity" in c_lower or "qty" in c_lower:
-                col_map[c] = f"Qty_{month}_{year}"
-            elif "market" in c_lower and "value" in c_lower:
-                col_map[c] = f"MarketValue_{month}_{year}"
-            elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
-                col_map[c] = f"NavPct_{month}_{year}"
+            if "isin" in c_lower: col_map[c] = "ISIN"
+            elif "name" in c_lower and ("instrument" in c_lower or "security" in c_lower): col_map[c] = "Stock Name"
+            elif "quantity" in c_lower or "qty" in c_lower: col_map[c] = f"Qty_{month}_{year}"
+            elif "market" in c_lower and "value" in c_lower: col_map[c] = f"MarketValue_{month}_{year}"
+            elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower: col_map[c] = f"NavPct_{month}_{year}"
         df = df.rename(columns=col_map)
         
-        # Ensure we have the required columns
-        if "ISIN" not in df.columns or "Stock Name" not in df.columns or f"Qty_{month}_{year}" not in df.columns:
-            return None
+        if "ISIN" not in df.columns or "Stock Name" not in df.columns or f"Qty_{month}_{year}" not in df.columns: return None
         
         valid_rows = []
         for _, row in df.iterrows():
             try:
                 isin = str(row.get("ISIN", "")).upper().strip()
-                if not isin.startswith("INE"):
-                    continue
-                    
+                if not isin.startswith("INE"): continue
                 stock_name = str(row.get("Stock Name", "Unknown"))
                 qty_val = str(row.get(f"Qty_{month}_{year}", "0")).replace(",", "").replace(" ", "")
-                
-                # Skip if qty is invalid
-                if not qty_val or qty_val.lower() in ["nan", "n/a", "none", ""]:
-                    continue
-                    
+                if not qty_val or qty_val.lower() in ["nan", "n/a", "none", ""]: continue
                 qty = float(qty_val)
-                if qty <= 0:
-                    continue
+                if qty <= 0: continue
                 
-                record = {
-                    "Stock Name": stock_name,
-                    "ISIN": isin,
-                    f"Qty_{month}_{year}": qty
-                }
-                
-                # Add optional columns if they exist
+                record = {"Stock Name": stock_name, "ISIN": isin, f"Qty_{month}_{year}": qty}
                 if f"MarketValue_{month}_{year}" in df.columns:
-                    try:
-                        mv = float(str(row.get(f"MarketValue_{month}_{year}", 0)).replace(",", ""))
-                        record[f"MarketValue_{month}_{year}"] = mv
-                    except:
-                        record[f"MarketValue_{month}_{year}"] = 0
-                        
+                    try: record[f"MarketValue_{month}_{year}"] = float(str(row.get(f"MarketValue_{month}_{year}", 0)).replace(",", ""))
+                    except: record[f"MarketValue_{month}_{year}"] = 0
                 if f"NavPct_{month}_{year}" in df.columns:
-                    try:
-                        np_val = float(str(row.get(f"NavPct_{month}_{year}", 0)))
-                        record[f"NavPct_{month}_{year}"] = np_val
-                    except:
-                        record[f"NavPct_{month}_{year}"] = 0
-                
+                    try: record[f"NavPct_{month}_{year}"] = float(str(row.get(f"NavPct_{month}_{year}", 0)))
+                    except: record[f"NavPct_{month}_{year}"] = 0
                 valid_rows.append(record)
-            except Exception as e:
-                continue
+            except: continue
         return pd.DataFrame(valid_rows)
     except: return None

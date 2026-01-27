@@ -14,8 +14,9 @@
 **FundFlow Analytics** is a modern, AI-powered dashboard designed to bring transparency to Mutual Fund investing. While most tools only track returns (NAV), FundFlow tracks **decisions**.
 
 By parsing monthly portfolio disclosures, this tool visualizes exactly *how* a fund manager is deploying capital—identifying fresh entries, complete exits, and conviction shifts—all wrapped in a **Soft Minimalist SaaS** interface.
-![alt text](image.png)
 ---
+![alt text](image.png)
+
 
 ## ✨ Key Features
 
