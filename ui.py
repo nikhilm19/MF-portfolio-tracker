@@ -14,7 +14,7 @@ def apply_clean_saas_theme():
                 color: #111827;
             }
             
-            /* FORCE HEADINGS DARK */
+            /* --- CRITICAL FIX: FORCE ALL HEADINGS TO DARK COLOR --- */
             h1, h2, h3, h4, h5, h6 {
                 color: #111827 !important;
                 font-family: 'Plus Jakarta Sans', sans-serif;
@@ -23,6 +23,7 @@ def apply_clean_saas_theme():
             p, div, span, label {
                 color: #111827;
             }
+            /* ------------------------------------------------------ */
 
             .stApp {
                 background-color: #F5F3F8;
@@ -40,25 +41,67 @@ def apply_clean_saas_theme():
                 overflow-y: auto !important;
                 overflow-x: visible !important;
             }
+            /* Force Sidebar Text Colors */
             [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, 
             [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
                 color: #111827 !important;
                 font-weight: 500;
             }
 
-            /* 3. NAVIGATION ICONS */
-            [data-testid="stSidebarCollapsedControl"] svg,
-            [data-testid="stHeader"] button[kind="header"] svg,
-            [data-testid="stSidebar"] button[kind="header"] svg {
+            /* =================================================================
+               NAVIGATION ICONS (ALL STATES)
+            ================================================================= */
+            [data-testid="stSidebarCollapsedControl"] svg {
                 fill: #111827 !important;
                 color: #111827 !important;
             }
+            
             [data-testid="stSidebarCollapsedControl"] {
-                position: fixed !important; left: 12px !important; top: 12px !important; z-index: 999999 !important;
+                position: fixed !important;
+                left: 12px !important;
+                top: 12px !important;
+                z-index: 999999 !important;
+                transition: left 0.3s ease !important;
+                pointer-events: auto !important;
             }
-            [data-testid="stHeader"] { background-color: transparent !important; }
+            
+            [data-testid="stSidebarCollapsedControl"][aria-expanded="true"] {
+                left: 272px !important;
+            }
 
-            /* 4. TABS */
+            [data-testid="stHeader"] button[kind="header"] svg {
+                fill: #111827 !important;
+                color: #111827 !important;
+            }
+            [data-testid="stHeader"] {
+                background-color: transparent !important;
+            }
+            [data-testid="stRadio"] {
+                position: relative;
+                z-index: 10;
+            }
+
+            /* Radio Button Styles - Fixed */
+            [data-testid="stRadio"] > label {
+                color: #111827 !important;
+                font-weight: 600;
+            }
+            
+            [data-testid="stRadio"] [role="radiogroup"] {
+                gap: 0.5rem;
+            }
+            
+            [data-testid="stRadio"] [role="radiogroup"] label {
+                color: #111827 !important;
+                font-weight: 500;
+                cursor: pointer;
+            }
+            
+            [data-testid="stRadio"] [role="radiogroup"] label span {
+                color: #111827 !important;
+            }
+
+            /* 3. TABS */
             .stTabs [data-baseweb="tab-list"] {
                 background-color: #F3F4F6; padding: 4px; border-radius: 99px; gap: 5px; margin-bottom: 25px;
             }
@@ -74,78 +117,7 @@ def apply_clean_saas_theme():
             }
             .stTabs [data-baseweb="tab"] p { color: inherit !important; }
 
-            /* 5. METRIC CARDS & BUTTONS */
-            .metric-card {
-                background: #FFFFFF; border: none; border-radius: 20px; padding: 24px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.05); transition: transform 0.2s ease; margin-bottom: 20px;
-            }
-            .metric-card:hover { transform: translateY(-2px); box-shadow: 0 15px 35px rgba(0,0,0,0.08); }
-            .metric-label { font-size: 0.85rem; text-transform: uppercase; color: #9CA3AF; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
-            .metric-value { font-size: 2.5rem; font-weight: 800; color: #111827; letter-spacing: -0.5px; }
-            .metric-delta { display: inline-flex; align-items: center; font-size: 0.9rem; font-weight: 600; margin-top: 10px; padding: 4px 12px; border-radius: 99px; }
-            .delta-pos { background: #ECFDF5; color: #059669; } 
-            .delta-neg { background: #FEF2F2; color: #DC2626; } 
-            .delta-neu { background: #F3F4F6; color: #4B5563; } 
-            
-            .stButton > button {
-                background: linear-gradient(135deg, #FF6B00 0%, #FF9900 100%);
-                color: #FFFFFF !important; border: none; border-radius: 12px; font-weight: 600; padding: 0.6rem 1.5rem;
-                box-shadow: 0 4px 15px rgba(255, 107, 0, 0.25); transition: all 0.2s ease;
-            }
-            .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(255, 107, 0, 0.35); color: #FFFFFF !important; }
-            
-            @keyframes pulse-glow {
-                0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); }
-                70% { box-shadow: 0 0 0 12px rgba(255, 107, 0, 0); }
-                100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
-            }
-            div[data-testid="stButton"] button[kind="primary"] { animation: pulse-glow 2s infinite; font-size: 1.1rem; padding: 0.8rem 2.5rem; }
-
-            /* =================================================================
-               6. FORMS & DROPDOWNS (FIXED)
-            ================================================================= */
-            /* The main input box (Selectbox) */
-            div[data-baseweb="select"] > div {
-                background-color: #FFFFFF !important;
-                color: #111827 !important;
-                border-color: #E5E7EB !important;
-                border-radius: 12px !important;
-            }
-            
-            /* Text inside the select box */
-            div[data-baseweb="select"] span {
-                color: #111827 !important;
-            }
-            
-            /* The Dropdown Menu Popup container */
-            div[data-baseweb="popover"], div[data-baseweb="menu"] {
-                background-color: #FFFFFF !important;
-                border-radius: 12px !important;
-                border: 1px solid #F3F4F6 !important;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
-            }
-            
-            /* The Options inside the dropdown */
-            li[data-baseweb="option"] {
-                color: #111827 !important;
-                background-color: #FFFFFF !important;
-            }
-            
-            /* Option Hover State */
-            li[data-baseweb="option"]:hover, li[data-baseweb="option"][aria-selected="true"] {
-                background-color: #FFF7ED !important; /* Light Orange */
-                color: #C2410C !important;
-                font-weight: 600 !important;
-            }
-            
-            /* Fix SVG icons in dropdown (the arrow) */
-            div[data-baseweb="select"] svg {
-                fill: #6B7280 !important;
-            }
-            
-            /* ================================================================= */
-
-            /* LANDING PAGE STYLES */
+            /* 4. LANDING PAGE & HERO */
             .hero-container { padding: 40px 0; }
             .hero-pill {
                 background: #FFF7ED; color: #C2410C; padding: 6px 16px; border-radius: 99px;
@@ -153,14 +125,23 @@ def apply_clean_saas_theme():
             }
             .hero-title {
                 font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 20px; 
-                color: #111827 !important; letter-spacing: -1px;
+                color: #111827 !important; /* FORCED COLOR */
+                letter-spacing: -1px;
             }
             .hero-gradient {
                 background: linear-gradient(135deg, #FF6B00 0%, #FF9900 100%);
                 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             }
-            .hero-subtitle-main { font-size: 1.6rem; color: #1F2937 !important; font-weight: 700; line-height: 1.3; margin-bottom: 10px; }
-            .hero-subtitle-desc { font-size: 1.1rem; color: #6B7280 !important; line-height: 1.6; margin-bottom: 30px; max-width: 90%; }
+            .hero-subtitle-main { 
+                font-size: 1.6rem; 
+                color: #1F2937 !important; /* FORCED COLOR */
+                font-weight: 700; line-height: 1.3; margin-bottom: 10px; 
+            }
+            .hero-subtitle-desc { 
+                font-size: 1.1rem; 
+                color: #6B7280 !important; /* FORCED COLOR */
+                line-height: 1.6; margin-bottom: 30px; max-width: 90%; 
+            }
             
             /* Glass Card */
             .glass-card {
@@ -183,6 +164,34 @@ def apply_clean_saas_theme():
                 font-size: 2rem; margin-bottom: 15px; background: #FFF7ED;
                 width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 12px;
             }
+
+            /* 5. METRIC CARDS & BUTTONS */
+            .metric-card {
+                background: #FFFFFF; border: none; border-radius: 20px; padding: 24px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.05); transition: transform 0.2s ease; margin-bottom: 20px;
+            }
+            .metric-card:hover { transform: translateY(-2px); box-shadow: 0 15px 35px rgba(0,0,0,0.08); }
+            .metric-label { font-size: 0.85rem; text-transform: uppercase; color: #9CA3AF; font-weight: 600; margin-bottom: 8px; letter-spacing: 0.5px; }
+            .metric-value { font-size: 2.5rem; font-weight: 800; color: #111827; letter-spacing: -0.5px; }
+            .metric-delta { display: inline-flex; align-items: center; font-size: 0.9rem; font-weight: 600; margin-top: 10px; padding: 4px 12px; border-radius: 99px; }
+            .delta-pos { background: #ECFDF5; color: #059669; } 
+            .delta-neg { background: #FEF2F2; color: #DC2626; } 
+            .delta-neu { background: #F3F4F6; color: #4B5563; } 
+            
+            /* Buttons */
+            .stButton > button {
+                background: linear-gradient(135deg, #FF6B00 0%, #FF9900 100%);
+                color: #FFFFFF !important; border: none; border-radius: 12px; font-weight: 600; padding: 0.6rem 1.5rem;
+                box-shadow: 0 4px 15px rgba(255, 107, 0, 0.25); transition: all 0.2s ease;
+            }
+            .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(255, 107, 0, 0.35); color: #FFFFFF !important; }
+            
+            @keyframes pulse-glow {
+                0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); }
+                70% { box-shadow: 0 0 0 12px rgba(255, 107, 0, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+            }
+            div[data-testid="stButton"] button[kind="primary"] { animation: pulse-glow 2s infinite; font-size: 1.1rem; padding: 0.8rem 2.5rem; }
 
             .stDownloadButton > button { background: #F3F4F6; color: #374151 !important; box-shadow: none; }
             .stDownloadButton > button:hover { background: #E5E7EB; color: #111827 !important; box-shadow: none; }
