@@ -13,6 +13,18 @@ def apply_clean_saas_theme():
                 -webkit-font-smoothing: antialiased;
                 color: #111827;
             }
+            
+            /* --- CRITICAL FIX: FORCE ALL HEADINGS TO DARK COLOR --- */
+            h1, h2, h3, h4, h5, h6 {
+                color: #111827 !important;
+                font-family: 'Plus Jakarta Sans', sans-serif;
+                font-weight: 700;
+            }
+            p, div, span, label {
+                color: #111827;
+            }
+            /* ------------------------------------------------------ */
+
             .stApp {
                 background-color: #F5F3F8;
                 background-image: radial-gradient(#E9DFF7 1px, transparent 1px);
@@ -29,6 +41,7 @@ def apply_clean_saas_theme():
                 overflow-y: auto !important;
                 overflow-x: visible !important;
             }
+            /* Force Sidebar Text Colors */
             [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, 
             [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] p {
                 color: #111827 !important;
@@ -36,9 +49,8 @@ def apply_clean_saas_theme():
             }
 
             /* =================================================================
-               CRITICAL FIX: NAVIGATION ICONS (ALL STATES)
+               NAVIGATION ICONS (ALL STATES)
             ================================================================= */
-            /* 1. Sidebar Toggle (Hamburger - Closed State) */
             [data-testid="stSidebarCollapsedControl"] svg {
                 fill: #111827 !important;
                 color: #111827 !important;
@@ -53,12 +65,10 @@ def apply_clean_saas_theme():
                 pointer-events: auto !important;
             }
             
-            /* When sidebar is open, slide button to the right */
             [data-testid="stSidebarCollapsedControl"][aria-expanded="true"] {
                 left: 272px !important;
             }
 
-            /* 3. Top Right Menu (Three Dots) */
             [data-testid="stHeader"] button[kind="header"] svg {
                 fill: #111827 !important;
                 color: #111827 !important;
@@ -66,15 +76,12 @@ def apply_clean_saas_theme():
             [data-testid="stHeader"] {
                 background-color: transparent !important;
             }
-            
-            /* Radio Button Styling */
             [data-testid="stRadio"] {
                 position: relative;
                 z-index: 10;
             }
-            /* ================================================================= */
 
-            /* 3. TABS (COLOR FIX) */
+            /* 3. TABS */
             .stTabs [data-baseweb="tab-list"] {
                 background-color: #F3F4F6; padding: 4px; border-radius: 99px; gap: 5px; margin-bottom: 25px;
             }
@@ -90,21 +97,31 @@ def apply_clean_saas_theme():
             }
             .stTabs [data-baseweb="tab"] p { color: inherit !important; }
 
-            /* 4. LANDING PAGE STYLES */
+            /* 4. LANDING PAGE & HERO */
             .hero-container { padding: 40px 0; }
             .hero-pill {
                 background: #FFF7ED; color: #C2410C; padding: 6px 16px; border-radius: 99px;
                 font-size: 0.8rem; font-weight: 700; border: 1px solid #FFEDD5; display: inline-block; margin-bottom: 20px;
             }
             .hero-title {
-                font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 20px; color: #111827; letter-spacing: -1px;
+                font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 20px; 
+                color: #111827 !important; /* FORCED COLOR */
+                letter-spacing: -1px;
             }
             .hero-gradient {
                 background: linear-gradient(135deg, #FF6B00 0%, #FF9900 100%);
                 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             }
-            .hero-subtitle-main { font-size: 1.6rem; color: #1F2937; font-weight: 700; line-height: 1.3; margin-bottom: 10px; }
-            .hero-subtitle-desc { font-size: 1.1rem; color: #6B7280; line-height: 1.6; margin-bottom: 30px; max-width: 90%; }
+            .hero-subtitle-main { 
+                font-size: 1.6rem; 
+                color: #1F2937 !important; /* FORCED COLOR */
+                font-weight: 700; line-height: 1.3; margin-bottom: 10px; 
+            }
+            .hero-subtitle-desc { 
+                font-size: 1.1rem; 
+                color: #6B7280 !important; /* FORCED COLOR */
+                line-height: 1.6; margin-bottom: 30px; max-width: 90%; 
+            }
             
             /* Glass Card */
             .glass-card {
@@ -149,7 +166,6 @@ def apply_clean_saas_theme():
             }
             .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(255, 107, 0, 0.35); color: #FFFFFF !important; }
             
-            /* Pulse Animation */
             @keyframes pulse-glow {
                 0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7); }
                 70% { box-shadow: 0 0 0 12px rgba(255, 107, 0, 0); }
@@ -167,7 +183,6 @@ def apply_clean_saas_theme():
         </style>
         
         <script>
-            // Ensure hamburger button is always clickable
             function makeHamburgerClickable() {
                 const hamburger = document.querySelector('[data-testid="stSidebarCollapsedControl"]');
                 if (hamburger) {
@@ -176,8 +191,6 @@ def apply_clean_saas_theme():
                     hamburger.style.position = 'relative';
                 }
             }
-            
-            // Run periodically to ensure it stays clickable
             setInterval(makeHamburgerClickable, 100);
             window.addEventListener('load', makeHamburgerClickable);
         </script>
@@ -194,59 +207,36 @@ def render_metric_card(label, value, delta=None, delta_color="neu"):
     """, unsafe_allow_html=True)
 
 def render_treemap(df, col_name):
-    # Extract month/year from col_name (e.g., "Qty_January_2025")
-    col_base = col_name.replace("Qty_", "")  # "January_2025"
+    col_base = col_name.replace("Qty_", "")
     market_value_col = f"MarketValue_{col_base}"
     nav_pct_col = f"NavPct_{col_base}"
     
-    # Build hover data dict based on available columns
     hover_data = {col_name: ':.0f'}
-    if market_value_col in df.columns:
-        hover_data[market_value_col] = ':.2f'
-    if nav_pct_col in df.columns:
-        hover_data[nav_pct_col] = ':.2f'
+    if market_value_col in df.columns: hover_data[market_value_col] = ':.2f'
+    if nav_pct_col in df.columns: hover_data[nav_pct_col] = ':.2f'
     
-    # Create treemap
     fig = px.treemap(
-        df, 
-        path=['Stock Name'], 
-        values=col_name, 
-        color=col_name, 
-        color_continuous_scale='Oranges',
-        hover_data=hover_data
+        df, path=['Stock Name'], values=col_name, color=col_name, color_continuous_scale='Oranges', hover_data=hover_data
     )
     
-    # Build custom data array with NavPct multiplied by 100 for display
     custom_data_cols = [col_name]
-    if market_value_col in df.columns:
-        custom_data_cols.append(market_value_col)
-    if nav_pct_col in df.columns:
-        custom_data_cols.append(nav_pct_col)
+    if market_value_col in df.columns: custom_data_cols.append(market_value_col)
+    if nav_pct_col in df.columns: custom_data_cols.append(nav_pct_col)
     
     custom_data = df[custom_data_cols].copy()
-    if nav_pct_col in df.columns:
-        custom_data[nav_pct_col] = custom_data[nav_pct_col]
     
-    # Build custom hover template
     hover_template = '<b>%{label}</b><br>Quantity: %{customdata[0]:,.0f}'
-    if market_value_col in df.columns:
-        hover_template += '<br>Market Value: ₹%{customdata[1]:,.2f}'
+    if market_value_col in df.columns: hover_template += '<br>Market Value: ₹%{customdata[1]:,.2f}'
     if nav_pct_col in df.columns:
         nav_index = 2 if market_value_col in df.columns else 1
         hover_template += f'<br>% to NAV: %{{customdata[{nav_index}]:.2f}}%'
     hover_template += '<extra></extra>'
     
-    fig.update_traces(
-        customdata=custom_data.values,
-        hovertemplate=hover_template,
-        marker=dict(line=dict(width=0))
-    )
+    fig.update_traces(customdata=custom_data.values, hovertemplate=hover_template, marker=dict(line=dict(width=0)))
     fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)', 
-        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         font=dict(family="Plus Jakarta Sans, sans-serif", color="#4B5563"),
-        margin=dict(t=0, l=0, r=0, b=0), 
-        coloraxis_showscale=False,
+        margin=dict(t=0, l=0, r=0, b=0), coloraxis_showscale=False,
         hoverlabel=dict(bgcolor="white", bordercolor="#FED7AA", font=dict(family="Plus Jakarta Sans, sans-serif", color="#111827", size=12))
     )
     st.plotly_chart(fig, use_container_width=True)
