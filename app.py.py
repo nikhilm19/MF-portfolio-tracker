@@ -118,7 +118,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Mode")
     mode_index = 0 if st.session_state.get("app_mode", "Single View") == "Single View" else 1
-    app_mode = st.radio("", ["Single View", "Compare Funds"], index=mode_index, label_visibility="collapsed")
+    app_mode = st.radio("Navigation Mode", ["Single View", "Compare Funds"], index=mode_index, label_visibility="collapsed")
     st.session_state["app_mode"] = app_mode
     st.markdown("---")
 
