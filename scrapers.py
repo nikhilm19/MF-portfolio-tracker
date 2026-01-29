@@ -88,18 +88,14 @@ def fetch_ppfas(month, year):
 def fetch_nippon(month, year):
     try:
         conf = FUND_CONFIG["Nippon India Small Cap"]
-        # Use precise mapping (e.g., July -> Jul, not July)
-        mon_abbr = MONTH_ABBR.get(month, month[:3])
-        yy = str(year)[-2:]
+        month_short, year_short = month[:3], str(year)[-2:]
         target_url = None
         
-        # 1. Try Specific URL Patterns (Fastest)
+        # 1. Try Direct Patterns
         urls = [
-            f"https://mf.nipponindiaim.com/Funds/PortfolioDisclosures/MonthlyPortfolio/NIMF-MONTHLY-PORTFOLIO-{mon_abbr}-{yy}.xls",
-            f"https://mf.nipponindiaim.com/Funds/PortfolioDisclosures/MonthlyPortfolio/NIMF-MONTHLY-PORTFOLIO-{mon_abbr.upper()}-{yy}.xls",
-            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{mon_abbr}-{yy}.xls"
+            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month_short}-{year_short}.xls",
+            f"https://mf.nipponindiaim.com/InvestorServices/FactsheetsDocuments/NIMF-MONTHLY-PORTFOLIO-{month}-{year}.xls"
         ]
-        
         for u in urls:
             try:
                 if requests.head(u, headers=HEADERS, timeout=5, verify=False).status_code == 200:
@@ -109,15 +105,13 @@ def fetch_nippon(month, year):
 
         # 2. Fallback: Regex Search on Website (If direct URLs fail)
         if not target_url:
-            try:
-                resp = requests.get(conf["url"], headers=HEADERS, timeout=10, verify=False)
-                # Regex to find links matching month/year
-                regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{mon_abbr})[^"\']*(?:{year}|{yy})[^"\']*\.xls[x]?)["\']'
-                matches = re.findall(regex, resp.text, re.IGNORECASE)
-                if matches:
-                    link = matches[0]
-                    target_url = conf["base_url"] + link if link.startswith("/") else link
-            except: pass
+            resp = requests.get(conf["url"], headers=HEADERS, timeout=10)
+            regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
+            matches = re.findall(regex, resp.text, re.IGNORECASE)
+            if matches:
+                link = matches[0]
+                target_url = conf["base_url"] + link if link.startswith("/") else link
+        
         
         if not target_url: return None
 
