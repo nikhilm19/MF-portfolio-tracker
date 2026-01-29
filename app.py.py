@@ -78,7 +78,7 @@ def run_update_process(fund_name):
                 if "Stock Name_new" in master_df.columns:
                     master_df["Stock Name"] = master_df["Stock Name"].fillna(master_df["Stock Name_new"])
                     master_df.drop(columns=["Stock Name_new"], inplace=True)
-                
+                st.toast(f"✅ Secured data for {month}  ", icon="✨")
                 # Handle Qty column
                 if f"{col_name}_new" in master_df.columns:
                     master_df[col_name] = master_df[f"{col_name}_new"]
