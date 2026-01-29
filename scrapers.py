@@ -74,7 +74,9 @@ def fetch_nippon(month, year):
                 link = matches[0]
                 target_url = conf["base_url"] + link if link.startswith("/") else link
         
+        print(f"   🔍 Nippon URL found: {target_url}")
         if not target_url: return None
+    
 
         resp = requests.get(target_url, headers=HEADERS, timeout=30)
         try: df = pd.read_excel(BytesIO(resp.content), sheet_name=conf["sheet"], header=None, engine='openpyxl')
@@ -99,7 +101,9 @@ def fetch_nippon(month, year):
                     if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
                 except: continue
         return pd.DataFrame(valid_rows)
-    except: return None
+    except:
+        print(f"   ❌ Error fetching Nippon data for {month} {year}") 
+        return None
 
 # --- HDFC ENGINE ---
 def fetch_hdfc(month, year):
