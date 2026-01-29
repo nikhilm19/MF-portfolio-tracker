@@ -62,12 +62,12 @@ def fetch_nippon(st, month, year):
         ]
         for url in patterns:
             try: 
-                if requests.head(url, headers=HEADERS, timeout=3).status_code == 200: target_url = url; break
+                if requests.head(url, headers=HEADERS, timeout=1000).status_code == 200: target_url = url; break
             except: continue
             
         # 2. Try Regex
         if not target_url:
-            resp = requests.get(conf["url"], headers=HEADERS, timeout=10)
+            resp = requests.get(conf["url"], headers=HEADERS, timeout=1000)
             regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
             matches = re.findall(regex, resp.text, re.IGNORECASE)
             if matches:
