@@ -101,6 +101,7 @@ def fetch_nippon(st, month, year):
                     qty = float(str(row.get(f"Qty_{month}_{year}", 0)).replace(",", ""))
                     if qty > 0: valid_rows.append({"Stock Name": row["Stock Name"], "ISIN": isin, f"Qty_{month}_{year}": qty})
                 except: continue
+        st.toast(f"✅ Secured Nippon data for {month} {year} valid rows: {len(valid_rows)}", icon="✨")
         return pd.DataFrame(valid_rows)
     except:
         print(f"   ❌ Error fetching Nippon data for {month} {year}") 
