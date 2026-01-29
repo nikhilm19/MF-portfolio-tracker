@@ -49,7 +49,7 @@ def fetch_ppfas(month, year):
     except: return None
 
 # --- NIPPON ENGINE ---
-def fetch_nippon(month, year):
+def fetch_nippon(st, month, year):
     try:
         conf = FUND_CONFIG["Nippon India Small Cap"]
         month_short, year_short = month[:3], str(year)[-2:]
@@ -75,6 +75,7 @@ def fetch_nippon(month, year):
                 target_url = conf["base_url"] + link if link.startswith("/") else link
         
         print(f"   🔍 Nippon URL found: {target_url}")
+        st.toast(f"🔍 Nippon URL found for {month} {year}", icon="🔗")
         if not target_url: return None
     
 
@@ -103,6 +104,7 @@ def fetch_nippon(month, year):
         return pd.DataFrame(valid_rows)
     except:
         print(f"   ❌ Error fetching Nippon data for {month} {year}") 
+        st.toast(f"❌ Error fetching Nippon data for {month} {year}", icon="⚠️")
         return None
 
 # --- HDFC ENGINE ---

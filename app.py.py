@@ -67,7 +67,7 @@ def run_update_process(fund_name):
             status.text(f"📥 Fetching {month} for {fund_name}...")
             new_df = None
             if fund_name == "PPFAS Flexi Cap": new_df = scrapers.fetch_ppfas(month, YEARS[0])
-            elif fund_name == "Nippon India Small Cap": new_df = scrapers.fetch_nippon(month, YEARS[0])
+            elif fund_name == "Nippon India Small Cap": new_df = scrapers.fetch_nippon(st,month, YEARS[0])
             elif fund_name == "HDFC Nifty 50 Index": new_df = scrapers.fetch_hdfc(month, YEARS[0])
             
             if new_df is not None:
