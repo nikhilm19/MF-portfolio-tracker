@@ -95,6 +95,9 @@ def run_update_process(fund_name):
                 if f"{nav_pct_col}_new" in master_df.columns:
                     master_df[nav_pct_col] = master_df[f"{nav_pct_col}_new"]
                     master_df.drop(columns=[f"{nav_pct_col}_new"], inplace=True)
+
+            else:
+                st.toast(f"⚠️ Data for {month} not found. Skipping.", icon="⚠️")
         bar.progress((i + 1) / len(MONTHS))
     
     master_df = normalize_names(master_df)
