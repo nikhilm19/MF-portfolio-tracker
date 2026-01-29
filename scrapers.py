@@ -71,11 +71,12 @@ def fetch_nippon(st, month, year):
             regex = fr'href=["\']([^"\']*(?:monthly|portfolio)[^"\']*(?:{month}|{month_short})[^"\']*(?:{year}|{year_short})[^"\']*\.xls[x]?)["\']'
             matches = re.findall(regex, resp.text, re.IGNORECASE)
             if matches:
+                st.toast(f"🔍 Nippon Regex matched {len(matches)} links", icon="🔗")
                 link = matches[0]
                 target_url = conf["base_url"] + link if link.startswith("/") else link
         
         print(f"   🔍 Nippon URL found: {target_url}")
-        st.toast(f"🔍 Nippon URL found for {month} {year}", icon="🔗")
+        st.toast(f"🔍 Nippon URL not found for {month} {year}", icon="🔗")
         if not target_url: return None
     
 
