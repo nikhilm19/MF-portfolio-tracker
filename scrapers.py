@@ -158,10 +158,10 @@ def fetch_nippon(month, year):
             elif "quantity" in c_lower or "qty" in c_lower:
                 col_map[c] = f"Qty_{month}_{year}"
             # Optional Cols
-            elif "market" in c_lower and "value" in c_lower:
-                col_map[c] = f"MarketValue_{month}_{year}"
-            elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
-                col_map[c] = f"NavPct_{month}_{year}"
+            #elif "market" in c_lower and "value" in c_lower:
+            #    col_map[c] = f"MarketValue_{month}_{year}"
+            #elif ("nav" in c_lower or "net assets" in c_lower or "% to" in c_lower) and "quantity" not in c_lower:
+            #    col_map[c] = f"NavPct_{month}_{year}"
                 
         df = df.rename(columns=col_map)
         
@@ -189,13 +189,13 @@ def fetch_nippon(month, year):
                 }
                 
                 # Parse Optional Cols (Safely)
-                if f"MarketValue_{month}_{year}" in df.columns:
-                    try: record[f"MarketValue_{month}_{year}"] = float(str(row[f"MarketValue_{month}_{year}"]).replace(",", ""))
-                    except: pass
+            #    if f"MarketValue_{month}_{year}" in df.columns:
+            #        try: record[f"MarketValue_{month}_{year}"] = float(str(row[f"MarketValue_{month}_{year}"]).replace(",", ""))
+            #        except: pass
                 
-                if f"NavPct_{month}_{year}" in df.columns:
-                    try: record[f"NavPct_{month}_{year}"] = float(str(row[f"NavPct_{month}_{year}"]).replace(",", "").replace("%", ""))
-                    except: pass
+            #    if f"NavPct_{month}_{year}" in df.columns:
+            #        try: record[f"NavPct_{month}_{year}"] = float(str(row[f"NavPct_{month}_{year}"]).replace(",", "").replace("%", ""))
+            #        except: pass
                     
                 valid_rows.append(record)
             except: continue
