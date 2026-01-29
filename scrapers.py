@@ -86,6 +86,7 @@ def fetch_nippon(st, month, year):
         header_idx = None
         for idx, row in df.iterrows():
             if "name of the instrument" in row.astype(str).str.cat(sep=' ').lower(): header_idx = idx; break
+        st.toast(f"🔍 Nippon Header found for {header_idx}", icon="🔗")
         if header_idx is None: return None
 
         df.columns = df.iloc[header_idx]
