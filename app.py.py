@@ -69,6 +69,8 @@ def run_update_process(fund_name):
             if fund_name == "PPFAS Flexi Cap": new_df = scrapers.fetch_ppfas(month, YEARS[0])
             elif fund_name == "Nippon India Small Cap": new_df = scrapers.fetch_nippon(st,month, YEARS[0])
             elif fund_name == "HDFC Nifty 50 Index": new_df = scrapers.fetch_hdfc(month, YEARS[0])
+            elif conf.get("amc_code") == "SBI":
+                new_df = scrapers.fetch_sbi_generic(fund_name, month, YEARS[0]) # <--- NEW GENERIC CALL
             
             if new_df is not None:
                 new_df["ISIN"] = new_df["ISIN"].astype(str).str.strip()
